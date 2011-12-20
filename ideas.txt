@@ -1,0 +1,24 @@
+Kind of regular expression to search for specific tree patterns, both
+topological and branch distances.
+
+pattern could be a newick structure, whose name is parsed as a series
+of conditions. 
+((sp=Hsa,sp=Pta,name=Hsa001),dups>1, name, H in species, )[dist>0.1*starter]
+
+class TreeMatcher(Object):
+      root = starter
+      n_childs:
+      n_seqs_
+      in
+      not in
+      number of dups
+      proportional dists
+      ... capacity to extend ...
+ 
+
+Matcher could be a recursive function.
+
+use proportion among branch lenghts. 
+
+how to auto generate pattern from real trees?
+
