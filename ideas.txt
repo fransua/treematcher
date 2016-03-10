@@ -22,3 +22,45 @@ use proportion among branch lenghts.
 
 how to auto generate pattern from real trees?
 
+
+OPERATORS
+groups []
+arguments {}
+OR   || 
+AND   &&
+NOT   !
+
+OPERATORS >= > < <= != == ~= IN
+@leaf
+@size
+@contains 
+
+
+examples: 
+
+(
+{@leaf OR @size == 4} AND {species == HUMAN} } 
+OR 
+{continue == 1} 
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+

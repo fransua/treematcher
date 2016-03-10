@@ -1,12 +1,24 @@
 from itertools import permutations
 from string import strip
 import re
-from ete2 import PhyloTree, Tree
-from ete2.parser import newick as nwParser
+from ete3 import PhyloTree, Tree
+from ete3.parser import newick as nwParser
 import operator as OP
+
+  
 
 def like(pattern,string):
     return re.search(string, pattern)
+
+OPERATOR = {
+    ">=": OP.ge,
+    "<=": OP.le,
+    ">": OP.gt,
+    "<": OP.lt,
+    "==": OP.eq,
+    "!=": OP.ne,
+    "~": like,
+    }
 
 class CountLeaves(object):
     def __init__(self, filter_fn=None):
@@ -35,7 +47,6 @@ def _parse_pattern(node, NHX_string):
         if field == "!":
             is_leaf_check = True
             continue
-           
 	ok = False
 	for key, op in OPERATOR.iteritems(): 
 	    try:
@@ -113,14 +124,6 @@ class TreePattern(Tree):
         else:
             return ([char1 + '-' + name_txt], 0)
 
-OPERATOR = {
-    ">=": OP.ge,
-    "<=": OP.le,
-    ">": OP.gt,
-    "<": OP.lt,
-    "==": OP.eq,
-    "~": like,
-    }
 
 def _match(p, t):
     for attr, keyop, expected in p.constrain: 
@@ -145,7 +148,7 @@ def match(P, T):
     if status and len(P.children):
         #print "has children"
         if len(T.children) == len(P.children):
-            # Check all possible comparison between patter children and
+            # Check all possible comparison between pattern children and
             # and tree node children.
             for candidate in permutations(P.children):
                 sub_status = True
@@ -181,18 +184,18 @@ for n in T.traverse():
 	print n
 raw_input("continue")
 
-pattern = "(any, moreA[&&NHX:CountA{}>=1]);"
+pattern = "(any[&&NHX:!:name!=A], moreA[&&NHX:CountA{}>=1]);"
 
 P = TreePattern(pattern)
 print P
-T = PhyloTree("(((A,B),(C,D)),U);")
+#T = PhyloTree("(((A,B),(C,D)),U);")
 #print T
-#T.populate(200, names_library="ABC", reuse_names=True)
-print T
+T.populate(20000, names_library="ABC", reuse_names=True)
+#print T
 for n in T.traverse():
     if match(P, n):
 	print "MATCHING NODE"
 	print n
-        raw_input()
+raw_input()
 
 
