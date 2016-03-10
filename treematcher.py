@@ -11,25 +11,25 @@ class TreePattern(Tree):
         Tree.__init__(self, *args, **kargs)
         for n in self.traverse():
             if n.name != "NoName":
-                n.constrain = n.name.replace("{", "(").replace("}", ")").replace("@", "__target").replace("|", ",")
+                n.constraint = n.name.replace("{", "(").replace("}", ")").replace("@", "__target").replace("|", ",")
             else:
-                n.constrain = None
+                n.constraint = None
     
     def constrain_match(self, __target, local_vars = None):
-        if not self.constrain:
-            return True
+        if not self.constraint:
+            return True0
         
         if not local_vars:
             local_vars = {}
         local_vars.update({"__target":__target, "self":__target})
         try:
-            st = eval(self.constrain, local_vars) if self.constrain else True
+            st = eval(self.constraint, local_vars) if self.constraint else True
             #print __target
             st = bool(st)
         except ValueError: 
-                raise ValueError("The following constrain expression did not return boolean result: %s BUT %s" %
-                                 (self.constrain, st))
-        #print self.constrain, st
+                raise ValueError("The following constraint expression did not return boolean result: %s BUT %s" %
+                                 (self.constraint, st))
+
         return st
     
     def is_match(self, node, local_vars=None):
@@ -53,7 +53,7 @@ class TreePattern(Tree):
         return status
     
     def __str__(self):
-        return self.get_ascii(show_internal=True, attributes=["constrain"])
+        return self.get_ascii(show_internal=True, attributes=["constraint"])
 
     def find_match(self, tree, local_vars):
         for node in tree.traverse("preorder"):
