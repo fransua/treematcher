@@ -85,23 +85,23 @@ def test():
     print pattern
     tree = Tree("((hello,(1,2,3)kk)pasa:1, NODE);", format=1)
     print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree1?:", pattern.find_match(tree, custom_functions)
+    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
 
     tree = Tree("((hello,(1,2,3)kk)pasa:0.4, NODE);", format=1)
     print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree2?:", pattern.find_match(tree, custom_functions)
+    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
 
     tree = Tree("(hello,(1,2,3)kk)pasa:1;", format=1)
     print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree2?:", pattern.find_match(tree, custom_functions)
+    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
 
     tree = Tree("((bye,(1,2,3)kk)none:1, NODE);", format=1)
     print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree2?:", pattern.find_match(tree, custom_functions)
+    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
 
     tree = Tree("((bye,(1,2,3)kk)y:1, NODE);", format=1)
     print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree2?:", pattern.find_match(tree, custom_functions)
+    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
 
 if __name__ == "__main__":
     test()
