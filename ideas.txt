@@ -14,14 +14,17 @@ class TreeMatcher(Object):
       number of dups
       proportional dists
       ... capacity to extend ...
- 
 
-Matcher could be a recursive function.
+Matcher could be a recursive function. Need for optimal algorithms
 
-use proportion among branch lenghts. 
 
-how to auto generate pattern from real trees?
+Develop a user-friendly Vocabulary of matching expressions: 
 
+
+Develop a way to auto generate patterns from a bunch of real trees
+
+
+Include all possible operators: 
 
 OPERATORS
 groups []
