@@ -75,7 +75,7 @@ def test():
     (
     len{@.children} > 2
     ,
-    len{set{{@.name|}}.intersection{set{{"hello"|"bye"}}}} > 0
+    @.name in {"hello"|"bye"}
     ){length{@.name} < 3 or @.name == "pasa"} and @.dist >= 0.5
     ;
     """
