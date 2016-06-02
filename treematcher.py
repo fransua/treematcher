@@ -75,24 +75,6 @@ class TreePattern(Tree):
             .replace("greater than", ">") \
             .replace(" is ", " == ")
 
-    ##### To Do ######
-        #
-        # parse strings using regular expressions (perhaps use an ordered dictionary on keywords?)
-        #
-        # use keyword Subtree to apply to all nodes children
-        #
-        # .replace("@.lineage","__target.get_taxonomy")
-        # .replace("Lineage", "[(ncbi.get_taxid_translator(lineage))[taxid] for taxid in ncbi.get_lineage(__target.taxid)]")\
-        # .replace("Genus","__target.get_taxonomy("Genus")")
-        # .replace("Duplication", '__target.evol_event=="D"')\
-        #
-        # Examples:
-        #   "Hominidae" in @.lineage
-        #   "Hominidae" in Lineage
-        #   Lineage contains("Hominidae") #would requires contains keyword to be defined with re
-        #   Genus is "Homo" or "Pan"
-        #
-        #
         return
 
 
@@ -162,7 +144,6 @@ def test_syntax():
 
 
     tree = PhyloTree("((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);", format=1)
-    # @.species will fail if not all nodes have species
     tree.set_species_naming_function(lambda n: n.name.split("_")[1] if "_" in n.name else '')
     print tree.get_ascii(attributes=["species", "dist"])
     print "Pattern matches tree?:", pattern1.find_match(tree, None)
@@ -184,3 +165,33 @@ def test_syntax():
 if __name__ == "__main__":
     test_basic()
     test_syntax()
+
+
+################################
+########## NOTES ###############
+
+    ##### Potential Issues ######
+
+    #  Genus is "Homo" or "Pan"
+    # is the same as
+    # Genus is "Homo" or node.name=="Pan"
+
+    # @.species will fail if not all nodes have species
+
+    ##### To Do ######
+    #
+    # parse strings using regular expressions (perhaps use an ordered dictionary on keywords?)
+    #
+    # use keyword Subtree to apply to all nodes children
+    #
+    # .replace("@.lineage","__target.get_taxonomy")
+    # .replace("Lineage", "[(ncbi.get_taxid_translator(lineage))[taxid] for taxid in ncbi.get_lineage(__target.taxid)]")\
+    # .replace("Genus","__target.get_taxonomy("Genus")")
+    # .replace("Duplication", '__target.evol_event=="D"')\
+    #
+    # Examples:
+    #   "Hominidae" in @.lineage
+    #   "Hominidae" in Lineage
+    #   Lineage contains("Hominidae") # would require a contains keyword to be defined with re
+    #
+    #
