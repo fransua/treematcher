@@ -1,4 +1,5 @@
 from itertools import permutations
+from collections import OrderedDict
 from string import strip
 import re
 import sys
@@ -17,9 +18,6 @@ class TreePattern(Tree):
                 n.constraint = None
 
     def constrain_match(self, __target, local_vars=None):
-        # if not self.constraint:
-        #   return True
-        # redundant true in line 26
 
         if not local_vars:
             local_vars = {}
@@ -64,16 +62,35 @@ class TreePattern(Tree):
                 return True, node
         return False, None
 
+    def _make_syntax_dictionary(self):
+
+        syntax_dict = OrderedDict([
+            ("@", "__target"),
+            ("Leaves", "[node.name for node in __target.get_leaves()]"),
+            ("__target.leaves", "[node.name for node in __target.get_leaves()]"),
+            ("Distance", "__target.dist"),
+            ("Species", "__target.species"),
+            ("less than", "<"),
+            (" or equal to", "="),
+            ("greater than", ">"),
+            (" is ", " == "),
+        ])
+        return syntax_dict
+
+
     def _parse_constraint(self,node):
-        node.constraint = node.name.replace("@", "__target")\
-            .replace("Leaves", "[node.name for node in __target.get_leaves()]")\
-            .replace("__target.leaves", "[node.name for node in __target.get_leaves()]")\
-            .replace("Distance", "__target.dist")\
-            .replace("Species", "__target.species")\
-            .replace("less than", "<") \
-            .replace(" or equal to", "=") \
-            .replace("greater than", ">") \
-            .replace(" is ", " == ")
+
+        syntax_dict = self._make_syntax_dictionary()
+
+        node.constraint = node.name
+        # use regular expressions turn multiple spaces to single space
+        node.constraint = re.sub("\s+", " ", node.constraint)
+
+        for keyword, python_code in syntax_dict.items():
+            try:
+                node.constraint = node.constraint.replace(keyword, python_code)
+            except (KeyError, ValueError):
+                print "Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code
 
         return
 
@@ -172,15 +189,16 @@ if __name__ == "__main__":
 
     ##### Potential Issues ######
 
-    #  Genus is "Homo" or "Pan"
-    # is the same as
-    # Genus is "Homo" or node.name=="Pan"
+    # 1) @.species is "sapiens" or "pygmaeus"
+    #    is the same as
+    #    @.species == "sapiens"or node.name=="pygmaeus"
+    #    which may not be what people expect
+    # 2) @.species will fail if not all nodes have species
 
-    # @.species will fail if not all nodes have species
 
     ##### To Do ######
     #
-    # parse strings using regular expressions (perhaps use an ordered dictionary on keywords?)
+    # parse strings using regular expressions
     #
     # use keyword Subtree to apply to all nodes children
     #
@@ -194,4 +212,7 @@ if __name__ == "__main__":
     #   "Hominidae" in Lineage
     #   Lineage contains("Hominidae") # would require a contains keyword to be defined with re
     #
+    # may want to store syntax metadata in an external file for easy access and minimal loading required
     #
+    # when parsing constraints
+    # may want to pull out everything in quotes first or extract some python keywords (in, is, or, and) first?
