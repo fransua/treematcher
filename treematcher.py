@@ -3,7 +3,9 @@ from string import strip
 import re
 import sys
 
-from ete3 import PhyloTree, Tree
+from ete3 import PhyloTree, Tree, NCBITaxa
+
+from ete3.ncbi_taxonomy import ncbiquery
 
 class TreePattern(Tree):
 
@@ -25,6 +27,7 @@ class TreePattern(Tree):
 
     def __init__(self, *args, **kargs):
         kargs["format"] = 1
+        #Do something for exact match here
         Tree.__init__(self, *args, **kargs)
         for n in self.traverse():
             if n.name != "NoName":
@@ -81,7 +84,7 @@ class TreePattern(Tree):
     def _parse_constraint(self,node):
 
         node.constraint = node.name
-        # use regular expressions turn multiple spaces to single space
+        # turn multiple spaces to single space
         node.constraint = re.sub("\s+", " ", node.constraint)
 
         for keyword, python_code in self._syntax_tuples:
@@ -94,6 +97,15 @@ class TreePattern(Tree):
 
 def length(txt):
     return len(txt)
+
+def distance_to_node(): # distance between two nodes
+    pass
+
+def distance_to_Tree(Tree, type):
+    # RF - topological distance between two trees
+    # use different argument for distance type
+    pass
+
 
 def test_basic():
     """
@@ -122,7 +134,6 @@ def test_basic():
     print tree.get_ascii(attributes=["name", "dist"])
     print "Pattern matches tree?:", pattern.find_match(tree, None)
 
-
 def test_syntax():
     """
         tests syntax-to-python conversion is working
@@ -150,73 +161,27 @@ def test_syntax():
 
 
     tree = PhyloTree("((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);", format=1)
-    tree.set_species_naming_function(lambda n: n.name.split("_")[1] if "_" in n.name else '')
     print tree.get_ascii(attributes=["name", "dist"])
     print "Pattern matches tree?:", pattern1.find_match(tree, None)
     print "Pattern without symbols matches tree?:", pattern2.find_match(tree, None)
 
 
     tree = PhyloTree("((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_2:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);", format=1)
-    tree.set_species_naming_function(lambda n: n.name.split("_")[1] if "_" in n.name else '')
     #print tree.get_ascii(attributes=["name", "dist"])
     print "Pattern matches tree missing leaf?:", pattern1.find_match(tree, None)
     print "Pattern without symbols matches tree missing leaf?:", pattern2.find_match(tree, None)
 
-def test_species():
-    """
-        tests if @.species is working
-    """
-
-    pattern1 = """
-        (
-        (
-        ( '  @.dist >= 0.5 ' , ' @.species in ("sapiens","pygmaeus")  ')
-        )
-        ' "Pan_troglodytes_1" in @.leaves and @.dist<2 '
-        )
-        ;
-        """
-
-    pattern2 = """
-        (
-        (
-        ( '  Distance greater than or equal to 0.5 ' , ' Species is "sapiens" or Species is "pygmaeus" ')
-        )
-        ' "Pan_troglodytes_1" in Leaves and Distance less than 2'
-        )
-        ;
-        """
-
-    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
-    pattern2 = TreePattern(pattern2, format=8, quoted_node_names=True)
-
-    print pattern1
-    print pattern2
 
 
-    tree = PhyloTree("((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);", format=1)
-    tree.set_species_naming_function(lambda n: n.name.split("_")[1] if "_" in n.name else '')
-    print tree.get_ascii(attributes=["species", "dist"])
-    print "Pattern matches tree?:", pattern1.find_match(tree, None)
-    print "Pattern without symbols matches tree?:", pattern2.find_match(tree, None)
 
-    tree = PhyloTree("((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);", format=1)
-    tree.set_species_naming_function(lambda node: (node.name.split("_")[0] + " " + node.name.split("_")[1]) if "_" in node.name else '')
-    #print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches wrong species tree?:", pattern1.find_match(tree, None)
-    print "Pattern without symbols matches wrong species tree?:", pattern2.find_match(tree, None)
 
-    tree = PhyloTree("((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_2:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);", format=1)
-    tree.set_species_naming_function(lambda n: n.name.split("_")[1] if "_" in n.name else '')
-    #print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree missing leaf?:", pattern1.find_match(tree, None)
-    print "Pattern without symbols matches tree missing leaf?:", pattern2.find_match(tree, None)
+
 
 def test_custom_functions():
     """
         tests all custom functions are working
     """
-    custom_functions = {"length":length}
+    custom_functions = {"length": length}
 
 
     pattern = """
@@ -247,11 +212,10 @@ def test_custom_functions():
     print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
 
 
-
 if __name__ == "__main__":
 
-    test_basic()
-    test_syntax()
+    #test_basic()
+    #test_syntax()
     test_species()
     #test_custom_functions()
     #test_evol_events()
@@ -286,8 +250,5 @@ if __name__ == "__main__":
     #   Lineage contains("Hominidae") # would require a contains keyword to be defined with re
     #
     # may want to store syntax metadata in an external file for easy access and minimal loading required
-    #
-    # when parsing constraints
-    # may want to pull out everything in quotes first or extract some python keywords (in, is, or, and) first?
     #
     # add regular expressions to each keyword as needed
