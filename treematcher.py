@@ -60,7 +60,6 @@ class TreePattern(Tree):
         return st
 
 
-
     def is_match(self, node, local_vars=None):
         # Check expected features
 
@@ -124,49 +123,7 @@ def distance_to_Tree(Tree, type):
     pass
 
 
-def test_basic():
-    """
-        tests basic ete parameters are working
-    """
-    pattern0 = """
-        exact ( bye , kk );
-        """
-    pattern1 = """
-        exact ( hello , kk );
-        """
-    pattern2 = """
-        (
-        'len(@.children) > 2 and @.name in ("hello","kk") '
-        )
-        '(len(@.name) < 3) and @.dist >= 0.5';
-        """
 
-    pattern0 = TreePattern(pattern0, format=8, quoted_node_names=False)
-    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=False)
-    pattern2 = TreePattern(pattern2, format=8, quoted_node_names=True)
-
-
-    #print pattern0
-    #print pattern1
-    #print pattern2
-
-
-
-    tree = Tree("(hello,(1,2,3)kk)pasa:1;", format=1)
-    print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern0.find_match(tree, None)
-    print "Pattern matches tree?:", pattern1.find_match(tree, None)
-    print "Pattern matches tree?:", pattern2.find_match(tree, None)
-
-    '''
-    tree = Tree("((kk,(1,2,3)bye)y:1, NODE);", format=1)
-    print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern.find_match(tree, None)
-
-    tree = Tree("(((1,2,3)bye)y:1, NoName);", format=1)
-    print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern.find_match(tree, None)
-    '''
 def test_syntax():
     """
         tests syntax-to-python conversion is working
@@ -242,40 +199,22 @@ def test_custom_functions():
 
 if __name__ == "__main__":
 
-    test_basic()
-    #test_syntax()
-    #test_custom_functions()
-    #test_evol_events()
+    # test_syntax()
+    # test_custom_functions()
+    # test_evol_events()
 
 
 
-################################
-########## NOTES ###############
-
-    ##### Potential Issues ######
+####################################################
+########## NOTES on Improvements ###############
 
     # 1) @.species is "sapiens" or "pygmaeus"
     #    is the same as
     #    @.species == "sapiens"or node.name=="pygmaeus"
     #    which may not be what people expect
     # 2) @.species will fail if not all nodes have species
-    #
-    # 3) if someone were to name their leaves with keywords, they would be modified
-    #   need to replace inner strings with temporary variables during the replace
 
 
     ##### To Do ######
-    #
-    # .replace("@.lineage","__target.get_taxonomy")
-    # .replace("Lineage", "[(ncbi.get_taxid_translator(lineage))[taxid] for taxid in ncbi.get_lineage(__target.taxid)]")\
-    # .replace("Genus","__target.get_taxonomy("Genus")")
-    # .replace("Duplication", '__target.evol_event=="D"')\
-    #
-    # Examples:
-    #   "Hominidae" in @.lineage
-    #   "Hominidae" in Lineage
-    #   Lineage contains("Hominidae") # would require a contains keyword to be defined with re
-    #
-    # may want to store syntax metadata in an external file for easy access and minimal loading required
-    #
-    # add regular expressions to each keyword as needed
+    #if someone were to name their leaves with keywords, they would be modified
+    #   need to replace inner strings with temporary variables during the replace
