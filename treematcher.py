@@ -27,12 +27,18 @@ class TreePattern(Tree):
 
     def __init__(self, *args, **kargs):
         kargs["format"] = 1
-        #Do something for exact match here
+
+        if len(args) > 0 and args[0].strip().startswith("exact"):
+            new_newick = args[0].replace("exact", "", 1)
+            args = (new_newick, ) + args[1:]
+            is_exact = True
+        else:
+            is_exact = False
         Tree.__init__(self, *args, **kargs)
+
         for n in self.traverse():
             if n.name != "NoName":
-                # n.constraint = n.name.replace("@", "__target")
-                self._parse_constraint(n)
+                self._parse_constraint(n, is_exact)
             else:
                 n.constraint = None
 
@@ -41,20 +47,25 @@ class TreePattern(Tree):
         if not local_vars:
             local_vars = {}
         local_vars.update({"__target": __target, "self": __target})
+
         try:
             st = eval(self.constraint, local_vars) if self.constraint else True  # eval string as python code
             #print __target
 
             st = bool(st)  # note that bool of any string returns true
-        except ValueError: 
+        except ValueError:
                 raise ValueError("The following constraint expression did not return boolean result: %s BUT %s" %
                                  (self.constraint, st))
 
         return st
-    
+
+
+
     def is_match(self, node, local_vars=None):
         # Check expected features
+
         status = self.constrain_match(node, local_vars)
+
         if status and self.children:
             #print "has children"
             if len(node.children) >= len(self.children):
@@ -81,17 +92,23 @@ class TreePattern(Tree):
                 return True, node
         return False, None
 
-    def _parse_constraint(self,node):
-
+    def _parse_constraint(self, node, is_exact=False):
         node.constraint = node.name
-        # turn multiple spaces to single space
-        node.constraint = re.sub("\s+", " ", node.constraint)
 
-        for keyword, python_code in self._syntax_tuples:
-            try:
-                node.constraint = node.constraint.replace(keyword, python_code)
-            except (KeyError, ValueError):
-                print "Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code
+        if is_exact and node.name != '':
+            node.constraint = "__target.name==" + "'" + str(node.constraint) + "'"
+            print node.constraint
+        else:
+            node.constraint = node.name
+            # turn multiple spaces to single space
+
+            node.constraint = re.sub("\s+", " ", node.constraint)
+
+            for keyword, python_code in self._syntax_tuples:
+                try:
+                    node.constraint = node.constraint.replace(keyword, python_code)
+                except (KeyError, ValueError):
+                    print "Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code
 
         return
 
@@ -111,21 +128,37 @@ def test_basic():
     """
         tests basic ete parameters are working
     """
-    pattern = """
-            (
-            'len(@.children) > 2 and @.name in ("hello","bye") '
-            )
-            '(len(@.name) < 3) and @.dist >= 0.5';
-            """
+    pattern0 = """
+        exact ( bye , kk );
+        """
+    pattern1 = """
+        exact ( hello , kk );
+        """
+    pattern2 = """
+        (
+        'len(@.children) > 2 and @.name in ("hello","kk") '
+        )
+        '(len(@.name) < 3) and @.dist >= 0.5';
+        """
 
-    pattern = TreePattern(pattern, format=8, quoted_node_names=True)
+    pattern0 = TreePattern(pattern0, format=8, quoted_node_names=False)
+    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=False)
+    pattern2 = TreePattern(pattern2, format=8, quoted_node_names=True)
 
-    print pattern
+
+    #print pattern0
+    #print pattern1
+    #print pattern2
+
+
 
     tree = Tree("(hello,(1,2,3)kk)pasa:1;", format=1)
     print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern.find_match(tree, None)
+    print "Pattern matches tree?:", pattern0.find_match(tree, None)
+    print "Pattern matches tree?:", pattern1.find_match(tree, None)
+    print "Pattern matches tree?:", pattern2.find_match(tree, None)
 
+    '''
     tree = Tree("((kk,(1,2,3)bye)y:1, NODE);", format=1)
     print tree.get_ascii(attributes=["name", "dist"])
     print "Pattern matches tree?:", pattern.find_match(tree, None)
@@ -133,7 +166,7 @@ def test_basic():
     tree = Tree("(((1,2,3)bye)y:1, NoName);", format=1)
     print tree.get_ascii(attributes=["name", "dist"])
     print "Pattern matches tree?:", pattern.find_match(tree, None)
-
+    '''
 def test_syntax():
     """
         tests syntax-to-python conversion is working
@@ -170,11 +203,6 @@ def test_syntax():
     #print tree.get_ascii(attributes=["name", "dist"])
     print "Pattern matches tree missing leaf?:", pattern1.find_match(tree, None)
     print "Pattern without symbols matches tree missing leaf?:", pattern2.find_match(tree, None)
-
-
-
-
-
 
 
 def test_custom_functions():
@@ -214,9 +242,8 @@ def test_custom_functions():
 
 if __name__ == "__main__":
 
-    #test_basic()
+    test_basic()
     #test_syntax()
-    test_species()
     #test_custom_functions()
     #test_evol_events()
 

@@ -5,7 +5,9 @@ from treematcher import TreePattern
 import unittest
 
 
-DATABASE_PATH = "testdb.sqlite"
+#DATABASE_PATH = "testdb.sqlite"
+DATABASE_PATH = "../ete/testdb.sqlite"
+
 
 
 class Test_TreePattern(unittest.TestCase):
