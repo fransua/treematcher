@@ -111,22 +111,10 @@ class TreePattern(Tree):
 
         return
 
-def length(txt):
-    return len(txt)
 
-def distance_to_node(): # distance between two nodes
-    pass
-
-def distance_to_Tree(Tree, type):
-    # RF - topological distance between two trees
-    # use different argument for distance type
-    pass
-
-
-
-def test_syntax():
+def test():
     """
-        tests syntax-to-python conversion is working
+        Create test cases here before converting to unittest
     """
     # " Saccharomyces_cerevisiae_1" in Children
     # "Homo_sapiens_1" in @.children
@@ -162,59 +150,16 @@ def test_syntax():
     print "Pattern without symbols matches tree missing leaf?:", pattern2.find_match(tree, None)
 
 
-def test_custom_functions():
-    """
-        tests all custom functions are working
-    """
-    custom_functions = {"length": length}
-
-
-    pattern = """
-        (
-        'len(@.children) > 2 and @.name in ("hello","bye") '
-        )
-        '(length(@.name) < 3) and @.dist >= 0.5';
-        """
-
-    pattern = TreePattern(pattern, format=8, quoted_node_names=True)
-
-    print pattern
-
-    tree = Tree("(hello,(1,2,3)kk)pasa:1;", format=1)
-    print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
-
-    tree = Tree("((kk,(1,2,3)bye)y:1, NODE);", format=1)
-    print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
-
-    tree = Tree("(((1,2,3)bye)y:1, NODE);", format=1)
-    print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
-
-    tree = Tree("(((1,2,3)bye,kk)y:1, NODE);", format=1)
-    print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern.find_match(tree, custom_functions)
-
-
 if __name__ == "__main__":
-
-    # test_syntax()
-    # test_custom_functions()
-    # test_evol_events()
-
-
+    test()
 
 ####################################################
 ########## NOTES on Improvements ###############
-
-    # 1) @.species is "sapiens" or "pygmaeus"
-    #    is the same as
-    #    @.species == "sapiens"or node.name=="pygmaeus"
-    #    which may not be what people expect
-    # 2) @.species will fail if not all nodes have species
-
-
-    ##### To Do ######
-    #if someone were to name their leaves with keywords, they would be modified
-    #   need to replace inner strings with temporary variables during the replace
+# 1) @.species is "sapiens" or "pygmaeus"
+#    is the same as
+#    @.species == "sapiens"or node.name=="pygmaeus"
+#    which may not be what people expect
+# 2) @.species will fail if not all nodes have species
+##### To Do ######
+#if someone were to name their leaves with keywords, they would be modified
+#   need to replace inner strings with temporary variables during the replace
