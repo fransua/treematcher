@@ -146,10 +146,11 @@ class Test_TreePattern(unittest.TestCase):
 
         """
         try:
-            sample_list = "1000trees.tsv"  # raw data list from Alan's lab [id, family, genus, species]
+            sample_list = "1000Trees.tsv"  # raw data list from Alan's lab [id, family, genus, species]
 
         except IndexError:
             print "invalid filename"
+
 
 
         with open(sample_list, 'r') as sample:
@@ -157,44 +158,32 @@ class Test_TreePattern(unittest.TestCase):
             line_count = 0
             match_count = 0
 
-            try:
-                sample_list = sys.argv[1]  # raw data list from Alan's lab [id, family, genus, species]
+            for line in lines:
+                line_count = line_count + 1
+                cells = line.split('\t')
+                # project = cells[0]
+                # id = cells[1]
+                # software = cells[2]
+                # trim = cells[3]
+                tree = cells[4]
 
-            except IndexError:
-                print "using default filename"
-                sample_list = "1000Trees.tsv"
+                tree = PhyloTree(tree, format=1, quoted_node_names=False)
 
-            with open(sample_list, 'r') as sample:
-                lines = sample.readlines()
-                line_count = 0
-                match_count = 0
+                tree.set_species_naming_function(lambda n: n.name.split(".")[0] if "." in n.name else '')
+                tree.annotate_ncbi_taxa(dbfile=DATABASE_PATH)
 
-                for line in lines:
-                    line_count = line_count + 1
-                    cells = line.split('\t')
-                    # project = cells[0]
-                    # id = cells[1]
-                    # software = cells[2]
-                    # trim = cells[3]
-                    tree = cells[4]
+                pattern = """
+                    ( ' 9443 in @.lineage ' , ' 9443 in @.lineage and @.name!=9606 ' )' @.support >= 0.9 ';
+                    """
+                pattern = TreePattern(pattern, format=8, quoted_node_names=False)
 
-                    tree = PhyloTree(tree, format=1, quoted_node_names=False)
+                if pattern.find_match(tree, None)[0]:
+                    match_count = match_count + 1
 
-                    tree.set_species_naming_function(lambda n: n.name.split(".")[0] if "." in n.name else '')
-                    tree.annotate_ncbi_taxa(dbfile=DATABASE_PATH)
+                if (line_count % 200 == 0):
+                    print str(match_count) + " matches found out of " + str(line_count)
 
-                    pattern = """
-                        ( ' 9443 in @.lineage ' , ' 9443 in @.lineage and @.name!=9606 ' )' @.support >= 0.9 ';
-                        """
-                    pattern = TreePattern(pattern, format=8, quoted_node_names=False)
-
-                    if pattern.find_match(tree, None)[0]:
-                        match_count = match_count + 1
-
-                    if (line_count % 200 == 0):
-                        print str(match_count) + " matches found out of " + str(line_count)
-
-                print "finished with " + str(match_count) + " matches for " + str(line_count) + " trees."
+            print "finished with " + str(match_count) + " matches for " + str(line_count) + " trees."
 
         self.assertEqual(match_count, line_count)
 
