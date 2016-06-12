@@ -112,7 +112,7 @@ class TreePattern(Tree):
         return
 
 
-def test():
+def test1():
     """
         Create test cases here before converting to unittest
     """
@@ -148,6 +148,11 @@ def test():
     #print tree.get_ascii(attributes=["name", "dist"])
     print "Pattern matches tree missing leaf?:", pattern1.find_match(tree, None)
     print "Pattern without symbols matches tree missing leaf?:", pattern2.find_match(tree, None)
+
+def test():
+    pass
+
+
 
 
 if __name__ == "__main__":
