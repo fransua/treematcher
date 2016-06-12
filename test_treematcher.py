@@ -143,7 +143,6 @@ class Test_TreePattern(unittest.TestCase):
         support >= 0.9--|
                                   \-Any primate taxid except human
 
-
         """
         try:
             sample_list = "1000Trees.tsv"  # raw data list from Alan's lab [id, family, genus, species]
