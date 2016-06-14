@@ -111,48 +111,8 @@ class TreePattern(Tree):
 
         return
 
-
-def test1():
-    """
-        Create test cases here before converting to unittest
-    """
-    # " Saccharomyces_cerevisiae_1" in Children
-    # "Homo_sapiens_1" in @.children
-
-    pattern1 = """
-        ( '  @.dist >= 0.5 ' , ' @.dist<2  ')
-        '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children '
-        ;
-        """
-
-    pattern2 = """
-        ( '  Distance greater than or equal to 0.5 ' , ' Distance less than 2 ' )
-        '     "Pan_troglodytes_1" in Leaves and "Homo_sapiens_1" in Children'
-        ;
-        """
-
-    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
-    pattern2 = TreePattern(pattern2, format=8, quoted_node_names=True)
-
-    print pattern1
-    print pattern2
-
-
-    tree = PhyloTree("((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);", format=1)
-    print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree?:", pattern1.find_match(tree, None)
-    print "Pattern without symbols matches tree?:", pattern2.find_match(tree, None)
-
-
-    tree = PhyloTree("((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_2:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);", format=1)
-    #print tree.get_ascii(attributes=["name", "dist"])
-    print "Pattern matches tree missing leaf?:", pattern1.find_match(tree, None)
-    print "Pattern without symbols matches tree missing leaf?:", pattern2.find_match(tree, None)
-
 def test():
     pass
-
-
 
 
 if __name__ == "__main__":

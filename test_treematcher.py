@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from ete3 import Tree, PhyloTree, NCBITaxa
 from treematcher import TreePattern
 import unittest
-import sys
 
 # DATABASE_PATH = "testdb.sqlite"
 DATABASE_PATH = "../ete/testdb.sqlite"
@@ -131,7 +130,7 @@ class Test_TreePattern(unittest.TestCase):
       """
         pass
 
-    def test_thousands_of_trees(self):
+    def test_one_thousand_trees(self):
 
         """
         Search over 26 thousand trees (naming format: NumericTaxid.SequenceName)
@@ -185,7 +184,6 @@ class Test_TreePattern(unittest.TestCase):
             print "finished with " + str(match_count) + " matches for " + str(line_count) + " trees."
 
         self.assertEqual(match_count, line_count)
-
 
 
 def length(txt):
