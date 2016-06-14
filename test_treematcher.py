@@ -5,7 +5,8 @@ import unittest
 import sys
 
 # DATABASE_PATH = "testdb.sqlite"
-DATABASE_PATH = "../ete/testdb.sqlite"
+#DATABASE_PATH = "../ete/testdb.sqlite"
+DATABASE_PATH = None # uses ETE default database
 
 class Test_TreePattern(unittest.TestCase):
     def test_ete_params(self):
