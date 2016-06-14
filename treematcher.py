@@ -117,14 +117,3 @@ def test():
 
 if __name__ == "__main__":
     test()
-
-####################################################
-########## NOTES on Improvements ###############
-# 1) @.species is "sapiens" or "pygmaeus"
-#    is the same as
-#    @.species == "sapiens"or node.name=="pygmaeus"
-#    which may not be what people expect
-# 2) @.species will fail if not all nodes have species
-##### To Do ######
-#if someone were to name their leaves with keywords, they would be modified
-#   need to replace inner strings with temporary variables during the replace

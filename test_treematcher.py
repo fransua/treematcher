@@ -149,8 +149,6 @@ class Test_TreePattern(unittest.TestCase):
         except IndexError:
             print "invalid filename"
 
-
-
         with open(sample_list, 'r') as sample:
             lines = sample.readlines()
             line_count = 0
