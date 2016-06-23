@@ -3,8 +3,7 @@ from ete3 import Tree, PhyloTree, NCBITaxa
 from treematcher import TreePattern
 import unittest
 
-# DATABASE_PATH = "testdb.sqlite"
-DATABASE_PATH = "../ete/testdb.sqlite"
+DATABASE_PATH = "testdb.sqlite"
 
 class Test_TreePattern(unittest.TestCase):
     def test_ete_params(self):
@@ -144,7 +143,7 @@ class Test_TreePattern(unittest.TestCase):
 
         """
         try:
-            sample_list = "1000Trees.tsv"  # raw data list from Alan's lab [id, family, genus, species]
+            sample_list = "1000Trees.tsv"
 
         except IndexError:
             print "invalid filename"

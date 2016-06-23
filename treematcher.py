@@ -1,11 +1,7 @@
 from itertools import permutations
-from string import strip
 import re
-import sys
 
 from ete3 import PhyloTree, Tree, NCBITaxa
-
-from ete3.ncbi_taxonomy import ncbiquery
 
 class TreePattern(Tree):
 
@@ -50,7 +46,6 @@ class TreePattern(Tree):
 
         try:
             st = eval(self.constraint, local_vars) if self.constraint else True  # eval string as python code
-            #print __target
 
             st = bool(st)  # note that bool of any string returns true
         except ValueError:
@@ -66,10 +61,7 @@ class TreePattern(Tree):
         status = self.constrain_match(node, local_vars)
 
         if status and self.children:
-            #print "has children"
             if len(node.children) >= len(self.children):
-                # Check all possible comparison between pattern children and
-                # and tree node children.
                 for candidate in permutations(node.children):
                     sub_status = True
                     for i in range(len(self.children)):
@@ -96,7 +88,6 @@ class TreePattern(Tree):
 
         if is_exact and node.name != '':
             node.constraint = "__target.name==" + "'" + str(node.constraint) + "'"
-            print node.constraint
         else:
             node.constraint = node.name
             # turn multiple spaces to single space
