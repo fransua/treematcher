@@ -1,0 +1,9 @@
+To test:
+
+python treematcher.py
+
+## To Do
+
+- create function that prepreocess data in a Node2content dictionary
+- create command line capability to search tree patterns
+- use module six for keeping compatible syntax for python 2/3
