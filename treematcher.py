@@ -148,6 +148,5 @@ def test():
     print pattern0.find_match(tree, None)
     print pattern1.find_match(tree, None)[1].name
 
-
 if __name__ == "__main__":
     test()
