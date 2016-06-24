@@ -12,10 +12,10 @@ class Test_TreePattern(unittest.TestCase):
 
         """
         pattern0 = """
-            exact ( bye , kk );
+             ( bye , kk );
             """
         pattern1 = """
-            exact ( hello , kk );
+            ( hello , kk );
             """
         pattern2 = """
             (
@@ -57,7 +57,7 @@ class Test_TreePattern(unittest.TestCase):
             format=1)
         self.assertEqual(pattern1.find_match(tree, None)[0], False)
 
-    def test_species_taxonomy(self):
+    def test_species(self):
         """
         tests if node.species and ncbi_query are working
         """
@@ -185,6 +185,7 @@ class Test_TreePattern(unittest.TestCase):
         for tree in trees:
             tree.set_species_naming_function(lambda n: n.name.split(".")[0] if "." in n.name else '')
             tree.annotate_ncbi_taxa()
+
 
             pattern = """
                 ( ' 9443 in @.lineage ' , ' 9443 in @.lineage and @.name!=9606 ' )' @.support >= 0.9 ';
