@@ -11,7 +11,7 @@ class TreePattern(Tree):
         ("__target.leaves", "[node.name for node in __target.get_leaves()]"),
         ("__target.children", "[n.name for n in __target.children]"),
         ("__target.contains", "self.get_tree_root().temp_cache_name[__target]"),
-        #("__target.leaves", "__target.temp_cache_leaves[__target]"),
+        ("__target.leaves", "__target.temp_cache_leaves[__target]"),
         #("__target.children", "__target.temp_cache_children[__target]"),
     ]
 
@@ -94,14 +94,15 @@ class TreePattern(Tree):
         root = tree.get_tree_root()
         if self.cache_flag_dict['@.contains']:
             root.add_feature("temp_cache_name", tree.get_cached_content(store_attr="name"))
+            # no store attr
 
-        #if self.cache_flag_dict['@.leaves']:
-        #    for n in tree:
-        #        n.add_feature("temp_cache_leaves", [node.name for node in n.get_leaves()])
+        if self.cache_flag_dict['@.leaves']:
+            n.add_feature("temp_cache_leaves", [node.name for node in n.get_leaves()])
 
-        #if self.cache_flag_dict['@.children']:
-        #    for n in tree:
-        #        n.add_feature("temp_cache_children", [node.name for node in n.get_children()])
+        if self.cache_flag_dict['@.children']:
+            n.add_feature("temp_cache_children", [node.name for node in n.get_children()])
+
+        #move into treepattern class
 
 
 
