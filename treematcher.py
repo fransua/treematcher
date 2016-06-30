@@ -1,5 +1,7 @@
 from itertools import permutations
+from ete3 import NCBITaxa
 import re
+import ast
 
 from ete3 import PhyloTree, Tree, NCBITaxa
 
@@ -7,25 +9,19 @@ class TreePattern(Tree):
 
     _syntax_tuples = [
         ("@", "__target"),
-        ("__target.size", "len(self.get_tree_root().temp_cache_name[__target])"),
-        ("__target.leaves", "[node.name for node in __target.get_leaves()]"),
-        ("__target.children", "[n.name for n in __target.children]"),
-        ("__target.contains", "self.get_tree_root().temp_cache_name[__target]"),
-        ("__target.leaves", "__target.temp_cache_leaves[__target]"),
-        #("__target.children", "__target.temp_cache_children[__target]"),
+        ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
+        ("__target.leaves",  "[n.name for n in temp_leaf_cache[__target]]"),
+        ("__target.size", "len(temp_leaf_cache[__target])"),
     ]
 
     def __init__(self, *args, **kargs):
         kargs["format"] = 1
         #initialize cache flags
-        self.cache_flag_dict = {
-            "@.contains": False,
-            "@.leaves": False,
-            "@.children": False,
-            #"@.contains_species": False,
-        }
+        #self.cache_flag_list=[]
+        self.cache_flag = 0
 
         is_exact = False
+
 
         if len(args) > 0:
             pattern_string = args[0].strip()
@@ -34,16 +30,16 @@ class TreePattern(Tree):
             if pattern_string.find('@') == -1:
                 is_exact = True
             else:
-             searches = ['@.contains', '@.leaves', '@.children']
-             for search_type in searches:
-                if pattern_string.find(search_type) != -1:
-                    self.cache_flag_dict[search_type] = True
+                leaf_searches = ['@.leaves', "@.contains_species", "@.contains", "@.size"]
+
+                for search_type in leaf_searches:
+                    if pattern_string.find(search_type) != -1:
+                        self.cache_flag = 1
 
         Tree.__init__(self, *args, **kargs)
-
+        self.temp_leaf_cache={}
 
         for n in self.traverse():
-
             if n.name != "NoName":
                 self._parse_constraint(n, is_exact)
             else:
@@ -54,7 +50,7 @@ class TreePattern(Tree):
 
         if not local_vars:
             local_vars = {}
-        local_vars.update({"__target": __target, "self": __target})
+        local_vars.update({"__target": __target, "self": __target, "temp_leaf_cache":self.temp_leaf_cache, "smart_lineage":self.smart_lineage, "ncbi":NCBITaxa})
 
         try:
             st = eval(self.constraint, local_vars) if self.constraint else True  # eval string as python code
@@ -89,25 +85,26 @@ class TreePattern(Tree):
     def __str__(self):
         return self.get_ascii(show_internal=True, attributes=["constraint"])
 
-
     def preprocess(self, tree):
-        root = tree.get_tree_root()
-        if self.cache_flag_dict['@.contains']:
-            root.add_feature("temp_cache_name", tree.get_cached_content(store_attr="name"))
-            # no store attr
+        self.temp_leaf_cache = tree.get_cached_content()
 
-        if self.cache_flag_dict['@.leaves']:
-            n.add_feature("temp_cache_leaves", [node.name for node in n.get_leaves()])
+        # pass by reference, so dictionary is available on all nodes
+        for node in self.traverse():
+            node.temp_leaf_cache = self.temp_leaf_cache
 
-        if self.cache_flag_dict['@.children']:
-            n.add_feature("temp_cache_children", [node.name for node in n.get_children()])
+        #for key,val in self.temp_leaf_cache.items():
+        #    print repr(key),repr(val)
 
-        #move into treepattern class
-
+        # notes on how to add a custom cache
+        # self.add_feature("leaves", [node for node in self.get_leaf_names()])
+        # temp_cache=tree.get_cached_content(store_attr="leaves", leaves_only=False)
+        # this is equivalent to t.get_cached_content(store_attr="name"), just using it here as an example
 
 
     def find_match(self, tree, local_vars):
-        self.preprocess(tree)
+
+        if self.cache_flag == 1:
+            self.preprocess(tree)
 
         for node in tree.traverse("preorder"):
             if self.is_match(node, local_vars=local_vars):
@@ -131,23 +128,61 @@ class TreePattern(Tree):
                 except (KeyError, ValueError):
                     print "Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code
 
+            if "__target.lineage" in node.constraint:
+                print node.constraint
+                node.constraint = self.smart_lineage(node.constraint)
+
+
+
         return
+    def smart_lineage(self, constraint):
+        """
+        returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage
+
+        """
+        parsed_pattern = ast.parse(constraint)
+        print parsed_pattern
+        #look in pattern at abstract syntax tree, the left sibling to @.lineage
+
+
+        # if there is a string before the "in @.linage", get names
+        if hasattr(parsed_pattern.body[0].value.left,'s'):
+            syntax="(ncbi.get_taxid_translator(__target.lineage)).values()"
+        else:         # looking for taxid, parsed_pattern.body[0].value.left,'n') is True
+            syntax ="__target.lineage"
+
+        return syntax
 
 
 def test():
-    pattern0 = """ ('   @.size == 1 and "Gallus_gallus_1" in @.contains ');"""
+    pattern0 = """ ('   @.dist == 1 and "Gallus_gallus_1" in @.leaves ');"""
     pattern1 = """( '  @.dist >= 0.5 ' , ' @.dist<2  ')
-        '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children ';"""
+       '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children ';"""
 
     pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
     pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
 
-    tree = Tree(
+    tree = PhyloTree(
         "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates)primates), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
         format=1)
+
     #print tree
     print pattern0.find_match(tree, None)
-    print pattern1.find_match(tree, None)[1].name
+    print pattern1.find_match(tree, None)
+
+def test2():
+    tree = PhyloTree(
+            "((9315.ENSMEUP00000008285:0.899711,9258.ENSOANP00000027752:0.559777)0.99985:0.11989,((9739.ENSTTRP00000010720:0.164873,9913.ENSBTAP00000003500:0.298158)0.99985:0.109903,((9685.ENSFCAP00000006440:0.239731,(9615.ENSCAFP00000042310:0.122399,(9646.ENSAMEP00000002314:0.18278,9669.ENSMPUP00000005544:0.270727)0.6117:0.0396991)0.99985:0.0702148)0.99985:0.082488,(132908.ENSPVAP00000014833:0.488081,(9796.ENSECAP00000022144:0.310699,(((9785.ENSLAFP00000009512:0.187095,9813.ENSPCAP00000004417:0.493329)0.99985:0.359095,(30611.ENSOGAP00000016876:0.334272,(9483.ENSCJAP00000021314:0.178043,(9601.ENSPPYP00000003401:0.0415077,((61853.ENSNLEP00000003253:0.196659,9544.ENSMMUP00000037769:0.326984)0.835225:0.0989423,(9593.ENSGGOP00000004740:0.101826,9606.ENSP00000182290:0.0204981)0.997196:0.020731)0.307827:0.0046059)0.99985:0.0991112)0.99985:0.162323)0.972253:0.0380139)0.70642:0.0193389,((10141.ENSCPOP00000016274:0.272126,43179.ENSSTOP00000015376:0.458416)0.996119:0.0901785,(37347.ENSTBEP00000013312:0.328061,(10020.ENSDORP00000010739:0.398341,(10116.ENSRNOP00000051746:0.0455948,10090.ENSMUSP00000009396:0.0811741)0.99985:0.269525)0.791467:0.0577236)0.536676:0.0461933)0.99985:0.0620583)0.99985:0.0788824)0.969465:0.0395994)0.635969:0.0171601)0.702925:0.0283261)0.99985:0.11989);",
+            format=1, quoted_node_names=False)
+
+    tree.set_species_naming_function(lambda n: n.name.split(".")[0] if "." in n.name else '')
+    tree.annotate_ncbi_taxa()
+
+    pattern = """
+        ('"primates" in @.lineage ' , '9443 in @.lineage ' )' @.support >= 0.9 ';
+        """
+    pattern = TreePattern(pattern, format=8, quoted_node_names=True)
+    print pattern.find_match(tree, None)
 
 
 if __name__ == "__main__":
