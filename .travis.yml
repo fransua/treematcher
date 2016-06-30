@@ -1,0 +1,15 @@
+language: python
+sudo: false
+
+python:
+  - "2.7"
+  - "3.4"
+  - "3.5"
+
+install:
+  - virtualenv "test_${TRAVIS_PYTHON_VERSION}"
+  - source "test_${TRAVIS_PYTHON_VERSION}/bin/activate"
+  - pip install ete3 six
+
+script:
+  - python test_treematcher.py
