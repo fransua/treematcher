@@ -9,7 +9,8 @@ python:
 install:
   - virtualenv "test_${TRAVIS_PYTHON_VERSION}"
   - source "test_${TRAVIS_PYTHON_VERSION}/bin/activate"
-  - pip install ete3 six
+  - pip install six
+  - pip install https://github.com/etetoolkit/ete/archive/feature/quotednames.zip
 
 script:
   - python test_treematcher.py
