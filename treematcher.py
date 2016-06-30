@@ -1,5 +1,6 @@
 from itertools import permutations
 from ete3 import NCBITaxa
+import six
 import re
 import ast
 
@@ -96,7 +97,7 @@ class TreePattern(Tree):
             node.temp_leaf_cache = self.temp_leaf_cache
 
         #for key,val in self.temp_leaf_cache.items():
-        #    print repr(key),repr(val)
+        #    print(repr(key),repr(val))
 
         # notes on how to add a custom cache
         # self.add_feature("leaves", [node for node in self.get_leaf_names()])
@@ -129,10 +130,10 @@ class TreePattern(Tree):
                 try:
                     node.constraint = node.constraint.replace(keyword, python_code)
                 except (KeyError, ValueError):
-                    print "Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code
+                    print("Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code)
 
             if "__target.lineage" in node.constraint:
-                print node.constraint
+                print(node.constraint)
                 node.constraint = self.smart_lineage(node.constraint)
 
 
@@ -174,8 +175,8 @@ def test():
         format=1)
 
     #print tree
-    print pattern0.find_match(tree, None)
-    print pattern1.find_match(tree, None)
+    print(pattern0.find_match(tree, None))
+    print(pattern1.find_match(tree, None))
 
 def test2():
     tree = PhyloTree(
@@ -189,7 +190,7 @@ def test2():
         ('"primates" in @.lineage ' , '9443 in @.lineage ' )' @.support >= 0.9 ';
         """
     pattern = TreePattern(pattern, format=8, quoted_node_names=True)
-    print pattern.find_match(tree, None)
+    print(pattern.find_match(tree, None))
 
 
 if __name__ == "__main__":
