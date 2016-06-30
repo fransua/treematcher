@@ -50,7 +50,10 @@ class TreePattern(Tree):
 
         if not local_vars:
             local_vars = {}
-        local_vars.update({"__target": __target, "self": __target, "temp_leaf_cache":self.temp_leaf_cache, "smart_lineage":self.smart_lineage, "ncbi":NCBITaxa})
+        local_vars.update({"__target": __target, "self": __target,
+                           "temp_leaf_cache":self.temp_leaf_cache,
+                           "smart_lineage":self.smart_lineage,
+                           "ncbi":NCBITaxa()})
 
         try:
             st = eval(self.constraint, local_vars) if self.constraint else True  # eval string as python code
@@ -140,15 +143,19 @@ class TreePattern(Tree):
         returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage
 
         """
-        parsed_pattern = ast.parse(constraint)
-        print parsed_pattern
+
+        parsedPattern = ast.parse(constraint, mode='eval')
+
         #look in pattern at abstract syntax tree, the left sibling to @.lineage
 
+        lineage_node = [n for n in ast.walk(parsedPattern) if
+                        hasattr(n, 'comparators') and type(n.comparators[0]) == ast.Attribute and n.comparators[
+                            0].value.id == "__target" and n.comparators[0].attr == "lineage"]
 
         # if there is a string before the "in @.linage", get names
-        if hasattr(parsed_pattern.body[0].value.left,'s'):
+        if hasattr(lineage_node[0].left,'s'):
             syntax="(ncbi.get_taxid_translator(__target.lineage)).values()"
-        else:         # looking for taxid, parsed_pattern.body[0].value.left,'n') is True
+        else:         # lineage_node[0].left.n exists and the prefix is a number
             syntax ="__target.lineage"
 
         return syntax
@@ -187,3 +194,4 @@ def test2():
 
 if __name__ == "__main__":
     test()
+    test2()
