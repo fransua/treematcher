@@ -99,7 +99,7 @@ class Test_TreePattern(unittest.TestCase):
         """
             tests custom functions are working
         """
-        custom_functions = {"length": length}
+        custom_functions = {"length": len}
 
         pattern = """
             (
@@ -194,12 +194,6 @@ class Test_TreePattern(unittest.TestCase):
 
             self.assertEqual(pattern.find_match(tree, None)[1].lineage, lineages[index])
             index += 1
-
-
-
-
-def length(txt):
-    return len(txt)
 
 
 def run():
