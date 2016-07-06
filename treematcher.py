@@ -13,16 +13,15 @@ class TreePattern(Tree):
         ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
         ("__target.leaves",  "[n.name for n in temp_leaf_cache[__target]]"),
         ("__target.size", "len(temp_leaf_cache[__target])"),
+
     ]
 
     def __init__(self, *args, **kargs):
         kargs["format"] = 1
-        #initialize cache flags
-        #self.cache_flag_list=[]
+
         self.cache_flag = 0
 
         is_exact = False
-
 
         if len(args) > 0:
             pattern_string = args[0].strip()
@@ -52,9 +51,9 @@ class TreePattern(Tree):
         if not local_vars:
             local_vars = {}
         local_vars.update({"__target": __target, "self": __target,
-                           "temp_leaf_cache":self.temp_leaf_cache,
-                           "smart_lineage":self.smart_lineage,
-                           "ncbi":NCBITaxa()})
+                           "temp_leaf_cache": self.temp_leaf_cache,
+                           "smart_lineage": self.smart_lineage,
+                           "ncbi": NCBITaxa()})
 
         try:
             st = eval(self.constraint, local_vars) if self.constraint else True  # eval string as python code
@@ -90,20 +89,17 @@ class TreePattern(Tree):
         return self.get_ascii(show_internal=True, attributes=["constraint"])
 
     def preprocess(self, tree):
+        """ create cache  """
         self.temp_leaf_cache = tree.get_cached_content()
 
         # pass by reference, so dictionary is available on all nodes
         for node in self.traverse():
             node.temp_leaf_cache = self.temp_leaf_cache
 
-        #for key,val in self.temp_leaf_cache.items():
-        #    print(repr(key),repr(val))
-
-        # notes on how to add a custom cache
+        # notes on how to add a custom cache, will do for distance2node
         # self.add_feature("leaves", [node for node in self.get_leaf_names()])
         # temp_cache=tree.get_cached_content(store_attr="leaves", leaves_only=False)
         # this is equivalent to t.get_cached_content(store_attr="name"), just using it here as an example
-
 
     def find_match(self, tree, local_vars):
 
@@ -139,27 +135,56 @@ class TreePattern(Tree):
 
 
         return
+
     def smart_lineage(self, constraint):
         """
-        returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage
-
+        Returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage.
+        For example, if a string is given before the "in @.linage" in a query, will get names instead of tax ids.
+        Note that names for genus rank and higher ranks must be capitalized.
         """
+
+        #if constraint contains .chilren[0].search, grab that and replace
 
         parsedPattern = ast.parse(constraint, mode='eval')
 
         #look in pattern at abstract syntax tree, the left sibling to @.lineage
+        try:
+            lineage_node = [n for n in ast.walk(parsedPattern)
+                            if hasattr(n, 'comparators') and type(n.comparators[0]) == ast.Attribute
+                            and n.comparators[0].attr == "lineage"]
 
-        lineage_node = [n for n in ast.walk(parsedPattern) if
-                        hasattr(n, 'comparators') and type(n.comparators[0]) == ast.Attribute and n.comparators[
-                            0].value.id == "__target" and n.comparators[0].attr == "lineage"]
+            index = 0
+            for lineage_search in lineage_node:
+                if hasattr(lineage_node[index].left,'s'):
+                    # use re to find  and retrieve what is between __target and .lineage
+                    found_target = (re.search(r'__target[^ ]*\.lineage', constraint).span())
+                    extracted_target = constraint[found_target[0] : found_target[1]]
 
-        # if there is a string before the "in @.linage", get names
-        if hasattr(lineage_node[0].left,'s'):
-            syntax="(ncbi.get_taxid_translator(__target.lineage)).values()"
-        else:         # lineage_node[0].left.n exists and the prefix is a number
-            syntax ="__target.lineage"
+                    syntax = "(ncbi.get_taxid_translator(" + \
+                             str(extracted_target) + ")).values()"
+                    if index == 0:
+                        constraint = constraint.replace(str(extracted_target), syntax, 1)
+                    else:
+                        # constraint = re.sub(r'^((.*?__target\.lineage.*?){{{index}}})__target\.lineage'.
+                        #                    format(index=index),
+                        #                    r'\1' + syntax, constraint)
 
-        return syntax
+                        # constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){{{index}}})' + extracted_target +
+                        #                 .format(index=index),
+                        #             r'\1' + syntax, constraint)
+
+                        constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){' + str(index) + r'})' + extracted_target,
+                                 r'\1' + syntax, constraint)
+
+                # else lineage_node[0].left.n exists and the prefix is a number, don't change anything
+
+                index = index + 1
+
+        except AttributeError:
+            print("Improper lineage search. Query requires @.lineage. For child lineages use newick format. ")
+
+
+        return constraint
 
 
 def test():
@@ -174,7 +199,6 @@ def test():
         "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates)primates), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
         format=1)
 
-    #print tree
     print(pattern0.find_match(tree, None))
     print(pattern1.find_match(tree, None))
 
@@ -186,13 +210,19 @@ def test2():
     tree.set_species_naming_function(lambda n: n.name.split(".")[0] if "." in n.name else '')
     tree.annotate_ncbi_taxa()
 
-    pattern = """
-        ('"primates" in @.lineage ' , '9443 in @.lineage ' )' @.support >= 0.9 ';
-        """
-    pattern = TreePattern(pattern, format=8, quoted_node_names=True)
-    print(pattern.find_match(tree, None))
+    pattern0 = """
+    ( '9443 in @.lineage  and "Primates" in @.lineage and @.name!=9606 ' )' @.support >= 0.9 ';
+    """
+    pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
+    print(pattern0.find_match(tree, None))
+
+    pattern1 = """
+    '"Primates" in @.children[0].lineage ';
+    """
+    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
+    print(pattern1.find_match(tree, None))
 
 
 if __name__ == "__main__":
-    test()
+    #test()
     test2()

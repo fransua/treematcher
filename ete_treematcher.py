@@ -1,4 +1,5 @@
 from .common import log
+import sys
 
 DESC=''
 
@@ -36,7 +37,7 @@ def run(args):
         if args.trees is not None:
             for t in args.trees:
                 t = Tree(t, format=int(args.tree_format[0]), quoted_node_names=args.quoted_node_names)
-                print pattern.find_match(t, None)
+                print(pattern.find_match(t, None))
 
         else:
             log.error('Please specify a tree to search.')
