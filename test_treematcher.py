@@ -95,11 +95,6 @@ class Test_TreePattern(unittest.TestCase):
         self.assertEqual(match1, (True, root))
         self.assertEqual(match2, (True, root))
 
-    def test_evol_events(self):
-        """
-      tests that .evol_event returns "R" or "D"
-      """
-        pass
 
     def test_lineages(self):
 
