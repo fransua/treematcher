@@ -62,6 +62,9 @@ class TreePattern(Tree):
         except ValueError:
                 raise ValueError("The following constraint expression did not return boolean result: %s BUT %s" %
                                  (self.constraint, st))
+        except (AttributeError, IndexError) as err:
+                print('Warning: Constraint evaluation failed at ' + str(__target) + ' with error "' + str(err) + '"')
+                st = False
 
         return st
 
@@ -101,15 +104,23 @@ class TreePattern(Tree):
         # temp_cache=tree.get_cached_content(store_attr="leaves", leaves_only=False)
         # this is equivalent to t.get_cached_content(store_attr="name"), just using it here as an example
 
-    def find_match(self, tree, local_vars):
+    def find_match(self, tree, local_vars, maxhits=1):
 
         if self.cache_flag == 1:
             self.preprocess(tree)
 
+        num_hits = 0
         for node in tree.traverse("preorder"):
+
             if self.is_match(node, local_vars=local_vars):
-                return True, node
-        return False, None
+                num_hits += 1
+                yield node
+
+            if maxhits is not None and num_hits >= maxhits:
+                break
+
+
+
 
     def _parse_constraint(self, node, is_exact=False):
         node.constraint = node.name
@@ -128,8 +139,7 @@ class TreePattern(Tree):
                 except (KeyError, ValueError):
                     print("Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code)
 
-            if "__target.lineage" in node.constraint:
-                print(node.constraint)
+            if ".lineage" in node.constraint:
                 node.constraint = self.smart_lineage(node.constraint)
 
 
@@ -148,40 +158,38 @@ class TreePattern(Tree):
         parsedPattern = ast.parse(constraint, mode='eval')
 
         #look in pattern at abstract syntax tree, the left sibling to @.lineage
-        try:
-            lineage_node = [n for n in ast.walk(parsedPattern)
-                            if hasattr(n, 'comparators') and type(n.comparators[0]) == ast.Attribute
-                            and n.comparators[0].attr == "lineage"]
 
-            index = 0
-            for lineage_search in lineage_node:
-                if hasattr(lineage_node[index].left,'s'):
-                    # use re to find  and retrieve what is between __target and .lineage
-                    found_target = (re.search(r'__target[^ ]*\.lineage', constraint).span())
-                    extracted_target = constraint[found_target[0] : found_target[1]]
+        lineage_node = [n for n in ast.walk(parsedPattern)
+                        if hasattr(n, 'comparators') and type(n.comparators[0]) == ast.Attribute
+                        and n.comparators[0].attr == "lineage"]
 
-                    syntax = "(ncbi.get_taxid_translator(" + \
-                             str(extracted_target) + ")).values()"
-                    if index == 0:
-                        constraint = constraint.replace(str(extracted_target), syntax, 1)
-                    else:
-                        # constraint = re.sub(r'^((.*?__target\.lineage.*?){{{index}}})__target\.lineage'.
-                        #                    format(index=index),
-                        #                    r'\1' + syntax, constraint)
+        index = 0
+        for lineage_search in lineage_node:
+            if hasattr(lineage_node[index].left,'s'):
+                # use re to find  and retrieve what is between __target and .lineage
+                found_target = (re.search(r'__target[^ ]*\.lineage', constraint).span())
+                extracted_target = constraint[found_target[0] : found_target[1]]
 
-                        # constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){{{index}}})' + extracted_target +
-                        #                 .format(index=index),
-                        #             r'\1' + syntax, constraint)
+                syntax = "(ncbi.get_taxid_translator(" + \
+                         str(extracted_target) + ")).values()"
+                if index == 0:
+                    constraint = constraint.replace(str(extracted_target), syntax, 1)
+                else:
+                    # constraint = re.sub(r'^((.*?__target\.lineage.*?){{{index}}})__target\.lineage'.
+                    #                    format(index=index),
+                    #                    r'\1' + syntax, constraint)
 
-                        constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){' + str(index) + r'})' + extracted_target,
-                                 r'\1' + syntax, constraint)
+                    # constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){{{index}}})' + extracted_target +
+                    #                 .format(index=index),
+                    #             r'\1' + syntax, constraint)
 
-                # else lineage_node[0].left.n exists and the prefix is a number, don't change anything
+                    constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){' + str(index) + r'})' + extracted_target,
+                             r'\1' + syntax, constraint)
 
-                index = index + 1
+            # else lineage_node[0].left.n exists and the prefix is a number, don't change anything
 
-        except AttributeError:
-            print("Improper lineage search. Query requires @.lineage. For child lineages use newick format. ")
+            index += 1
+
 
 
         return constraint
@@ -214,13 +222,13 @@ def test2():
     ( '9443 in @.lineage  and "Primates" in @.lineage and @.name!=9606 ' )' @.support >= 0.9 ';
     """
     pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
-    print(pattern0.find_match(tree, None))
+    #print(len(list(pattern0.find_match(tree, None, maxhits=None))))
 
     pattern1 = """
-    '"Primates" in @.children[0].lineage ';
+    "Mammalia" in @.children[0].lineage  ;
     """
     pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
-    print(pattern1.find_match(tree, None))
+    print(len(list(pattern1.find_match(tree, None, maxhits=3))))
 
 
 if __name__ == "__main__":
