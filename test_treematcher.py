@@ -95,36 +95,6 @@ class Test_TreePattern(unittest.TestCase):
         self.assertEqual(match1, (True, root))
         self.assertEqual(match2, (True, root))
 
-    def test_custom_fuctions(self):
-        """
-            tests custom functions are working
-        """
-        custom_functions = {"length": len}
-
-        pattern = """
-            (
-            'len(@.children) > 2 and @.name in ("hello","bye") '
-            )
-            '(length(@.name) < 3) and @.dist >= 0.5';
-            """
-
-        pattern = TreePattern(pattern, format=8, quoted_node_names=True)
-        tree = Tree("(hello,(1,2,3)kk)pasa:1;", format=1)
-        self.assertEqual(pattern.find_match(tree, custom_functions)[0], False)
-
-
-        tree = Tree("((kk,(1,2,3)bye)y:1, NODE);", format=1)
-        self.assertEqual(pattern.find_match(tree, custom_functions)[1].name, 'y')
-
-
-        tree = Tree("(((1,2,3)bye)y:1, NODE);", format=1)
-        self.assertEqual(pattern.find_match(tree, custom_functions)[1].name,  'y')
-
-
-        tree = Tree("(((1,2,3)bye,kk)y:1, NODE);", format=1)
-        self.assertEqual(pattern.find_match(tree, custom_functions)[1].name, 'y')
-
-
     def test_evol_events(self):
         """
       tests that .evol_event returns "R" or "D"
