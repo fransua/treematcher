@@ -8,7 +8,7 @@ class Test_TreePattern(unittest.TestCase):
     def test_ete_params(self):
         """
         tests exact match is working
-        tests basic ete parameters like node.name, node.dist, node.children are working
+        tests basic ete parameters like node.name, node.dist, node.support are working
 
         """
         pattern0 = """
@@ -134,7 +134,7 @@ class Test_TreePattern(unittest.TestCase):
     def test_lineages(self):
 
         """
-        Search over 26 thousand trees (naming format: NumericTaxid.SequenceName)
+        Search trees (naming format: NumericTaxid.SequenceName)
         for nodes containing branches that separate two groups of primate genes where,
         in one side, the human gene has been lost,
         and the branch support value of the matching node is higher than 0.9.
@@ -169,17 +169,10 @@ class Test_TreePattern(unittest.TestCase):
         l2 = [1, 131567, 2759, 33154, 33208, 6072, 33213, 33511, 7711, 89593, 7742, 7776, 117570, 117571, 8287, 1338369,
               32523, 32524, 40674]
         l1 = l2 + [32525, 9347, 1437010, 314146, 9443, 376913, 314293, 9526, 314295, 9604]
-        l3 = l2
-        l4 = l2 + [32525, 9347, 1437010, 314146, 9443, 376913, 314293, 9526, 314295, 9604]
-        l5 = l2
-        l6 = l2 + [32525]
-        l7 = l2
-        l8 = l2
-        l9 = l2 + [32525, 9263, 38608, 9277, 9304, 9305]
-        l10 = l2
+
 
         trees = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]
-        lineages = [l1, l2, l3, l4, l5, l6, l7, l8, l9, l10]
+        lineages = [l1, l2, l2, l1, l2, l2 + [32525], l2, l2, l2 + [32525, 9263, 38608, 9277, 9304, 9305], l2]
         index = 0
 
         for tree in trees:
