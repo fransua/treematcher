@@ -198,7 +198,8 @@ class TreePattern(Tree):
 def test():
     pattern0 = """ ('   @.dist == 1 and "Gallus_gallus_1" in @.leaves ');"""
     pattern1 = """( '  @.dist >= 0.5 ' , ' @.dist<2  ')
-       '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children ';"""
+       '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[0] or
+       "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[1]';"""
 
     pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
     pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
@@ -207,30 +208,15 @@ def test():
         "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates)primates), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
         format=1)
 
-    print(pattern0.find_match(tree, None))
-    print(pattern1.find_match(tree, None))
+    print(list(pattern0.find_match(tree, None, maxhits=None)))
+    print(len(list(pattern0.find_match(tree, None, maxhits=None))))
+    print(len(list(pattern0.find_match(tree, None, maxhits=1))))
+    print(len(list(pattern0.find_match(tree, None))))
 
-def test2():
-    tree = PhyloTree(
-            "((9315.ENSMEUP00000008285:0.899711,9258.ENSOANP00000027752:0.559777)0.99985:0.11989,((9739.ENSTTRP00000010720:0.164873,9913.ENSBTAP00000003500:0.298158)0.99985:0.109903,((9685.ENSFCAP00000006440:0.239731,(9615.ENSCAFP00000042310:0.122399,(9646.ENSAMEP00000002314:0.18278,9669.ENSMPUP00000005544:0.270727)0.6117:0.0396991)0.99985:0.0702148)0.99985:0.082488,(132908.ENSPVAP00000014833:0.488081,(9796.ENSECAP00000022144:0.310699,(((9785.ENSLAFP00000009512:0.187095,9813.ENSPCAP00000004417:0.493329)0.99985:0.359095,(30611.ENSOGAP00000016876:0.334272,(9483.ENSCJAP00000021314:0.178043,(9601.ENSPPYP00000003401:0.0415077,((61853.ENSNLEP00000003253:0.196659,9544.ENSMMUP00000037769:0.326984)0.835225:0.0989423,(9593.ENSGGOP00000004740:0.101826,9606.ENSP00000182290:0.0204981)0.997196:0.020731)0.307827:0.0046059)0.99985:0.0991112)0.99985:0.162323)0.972253:0.0380139)0.70642:0.0193389,((10141.ENSCPOP00000016274:0.272126,43179.ENSSTOP00000015376:0.458416)0.996119:0.0901785,(37347.ENSTBEP00000013312:0.328061,(10020.ENSDORP00000010739:0.398341,(10116.ENSRNOP00000051746:0.0455948,10090.ENSMUSP00000009396:0.0811741)0.99985:0.269525)0.791467:0.0577236)0.536676:0.0461933)0.99985:0.0620583)0.99985:0.0788824)0.969465:0.0395994)0.635969:0.0171601)0.702925:0.0283261)0.99985:0.11989);",
-            format=1, quoted_node_names=False)
 
-    tree.set_species_naming_function(lambda n: n.name.split(".")[0] if "." in n.name else '')
-    tree.annotate_ncbi_taxa()
-
-    pattern0 = """
-    ( '9443 in @.lineage  and "Primates" in @.lineage and @.name!=9606 ' )' @.support >= 0.9 ';
-    """
-    pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
-    #print(len(list(pattern0.find_match(tree, None, maxhits=None))))
-
-    pattern1 = """
-    "Mammalia" in @.children[0].lineage  ;
-    """
-    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
-    print(len(list(pattern1.find_match(tree, None, maxhits=3))))
+    print(list(pattern1.find_match(tree, None)))
+    print(len(list(pattern1.find_match(tree, None))))
 
 
 if __name__ == "__main__":
-    #test()
-    test2()
+    test()
