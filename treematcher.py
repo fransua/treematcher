@@ -156,12 +156,21 @@ class TreePattern(Tree):
             self.preprocess(tree)
 
         num_hits = 0
+        num = 0
         for node in tree.traverse("preorder"):
+            num += 1
 
             if self.is_match(node, local_vars=local_vars):
+                print num, '- YES'
+                print node.write(format=9)
+                # print node
                 num_hits += 1
                 yield node
-
+            else:
+                print num, '- NOP'
+                print node.write(format=9)
+                # print node
+            print '-'*60
             if maxhits is not None and num_hits >= maxhits:
                 break
 
@@ -194,16 +203,10 @@ class TreePattern(Tree):
                 except (KeyError, ValueError):
                     print("Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code)
 
-            print '-' * 50
-            print 'node', node
-            print 'constraint', node.constraint
             for attrib in re.findall("__target.([A-Za-z_0-9]+)\(", node.constraint):
                 if attrib not in builtins:
                     node.constraint = re.sub("__target.([A-Za-z_0-9]+)\(([^)]+)",
                                              "\\1(__target, pattern, (\\2)", node.constraint)
-
-            print 'constraint', node.constraint
-            print '-' * 50
 
             if ".lineage" in node.constraint:
                 node.constraint = self.smart_lineage(node.constraint)
