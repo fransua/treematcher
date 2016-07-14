@@ -13,8 +13,9 @@ class TreePattern(Tree):
     _syntax_tuples = [
         ("@", "__target"),
         ("__target.leaves",  "get_cached_attr('name', __target)"),
-        ("__target.contains_species", "get_cached_attr('species', __target)"),
         ("__target.size", "len(get_cached_attr('name', __target))"),
+        #("__target.contains_species", "get_cached_attr('species', __target)"),
+
         #("__target.size", "len(temp_leaf_cache[__target])"),
         # ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
         #("__target.leaves", "[n.name for n in temp_leaf_cache[__target]]"),
@@ -43,11 +44,12 @@ class TreePattern(Tree):
             if pattern_string.find('@') == -1:
                 is_exact = True
             else:
-                searches = ['@.leaves', "@.contains_species", "@.contains", "@.size"]
+                searches = ['.leaves', ".contains_species", ".contains", ".size"]
 
                 for search_type in searches:
                     if pattern_string.find(search_type) != -1:
                         self.cache_flag = 1
+
 
         Tree.__init__(self, *args, **kargs)
         self.temp_leaf_cache={}
@@ -182,6 +184,8 @@ class TreePattern(Tree):
             if ".lineage" in node.constraint:
                 node.constraint = self.smart_lineage(node.constraint)
 
+            if "contains_species" in node.constraint:
+                node.constraint = self.contains_species(node.constraint, node)
 
     def get_cached_attr(self, attr_name, node):
         """
@@ -214,7 +218,7 @@ class TreePattern(Tree):
             if hasattr(lineage_node[index].left,'s'):
                 # retrieve what is between __target and .lineage
                 found_target = (re.search(r'__target[^ ]*\.lineage', constraint).span())
-                extracted_target = constraint[found_target[0] : found_target[1]]
+                extracted_target = constraint[found_target[0]: found_target[1]]
 
                 syntax = "(ncbi.get_taxid_translator(" + \
                          str(extracted_target) + ")).values()"
@@ -235,15 +239,27 @@ class TreePattern(Tree):
     def contains(self, __target, species_list):
          pass
 
-    def contains_species(self, __target, species_list):
-        cached_species = get_cached_attr('species', __target)
+    def contains_species(self, constraint, __target):
+        print("constraint is", constraint)
+        found_species_list = (re.search(r'contains_species(.*\))', constraint).span())
+        extracted_species_constraint = constraint[found_species_list[0]-9: found_species_list[1]]
+
+        sp_list = constraint[found_species_list[0] + 16: found_species_list[1]]
+        print("sp_list is", sp_list)
+        species_list = eval(sp_list)
+        cached_species = self.get_cached_attr('species', __target)
+
         for sp in species_list:
-            # check to see if it is in the list
             if sp in cached_species:
                 continue
             else:
-                return False
-        return True
+                # Note, need to replace the entire part before .contains_species() as well, not just for __target.
+                constraint = constraint.replace(str(extracted_species_constraint), "False")
+                return constraint
+        # replace the entire part of the constraint for contains_species() with True
+        constraint = constraint.replace(str(extracted_species_constraint), "True")
+
+        return constraint
 
     def number_of_species(__target):
         pass
@@ -295,10 +311,10 @@ def test2():
     #print "Found %d species trees and %d duplication nodes" % (ntrees, ndups)
     #for spt in sptrees:
     #    print spt
-    print t
-    pattern = """( ' "Human" in @.contains_species and "Chimp" in @.contains_species   '); """
-    pattern = TreePattern(pattern, format=8, quoted_node_names=True)
-    print(len(list(pattern.find_match(t, None, maxhits=None))))
+    #print t
+    #pattern = """( ' "Human" in @.contains_species and "Chimp" in @.contains_species   '); """
+    #pattern = TreePattern(pattern, format=8, quoted_node_names=True)
+    #print(len(list(pattern.find_match(t, None, maxhits=None))))
 
     pattern1 = """( '@.contains_species("Human", "Chimp")   '); """
     pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
