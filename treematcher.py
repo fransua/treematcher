@@ -6,20 +6,29 @@ import ast
 
 from ete3 import PhyloTree, Tree, NCBITaxa
 
+
 class TreePattern(Tree):
+
 
     _syntax_tuples = [
         ("@", "__target"),
-        ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
-        ("__target.leaves",  "[n.name for n in temp_leaf_cache[__target]]"),
-        ("__target.size", "len(temp_leaf_cache[__target])"),
+        ("__target.leaves",  "get_cached_attr('name', __target)"),
+        ("__target.contains_species", "get_cached_attr('species', __target)"),
+        ("__target.size", "len(get_cached_attr('name', __target))"),
+        #("__target.size", "len(temp_leaf_cache[__target])"),
+        # ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
+        #("__target.leaves", "[n.name for n in temp_leaf_cache[__target]]"),
 
     ]
 
     def __init__(self, *args, **kargs):
+        """
+        :param args:
+        :param kargs:
+        """
         kargs["format"] = 1
 
-        self.cache_flag = 0
+        self.cache_flag = 1
 
         is_exact = False
 
@@ -47,13 +56,19 @@ class TreePattern(Tree):
 
 
     def constrain_match(self, __target, local_vars=None):
-
+        """
+        :param __target: represents a node you are looking to target. Replaces @ in a query.
+        :param local_vars: What was the intention of local_vars? Ask about this.
+        :return: returns a boolean value of True if a match is found, otherwise False.
+        """
         if not local_vars:
             local_vars = {}
         local_vars.update({"__target": __target, "self": __target,
                            "temp_leaf_cache": self.temp_leaf_cache,
                            "smart_lineage": self.smart_lineage,
-                           "ncbi": NCBITaxa()})
+                           "ncbi": NCBITaxa(),
+                           "get_cached_attr": self.get_cached_attr,
+                           })
 
         try:
             st = eval(self.constraint, local_vars) if self.constraint else True  # eval string as python code
@@ -70,8 +85,12 @@ class TreePattern(Tree):
 
 
     def is_match(self, node, local_vars=None):
-        # Check expected features
 
+        """
+        :param node: A tree (root node) to be searched for a given pattern
+        :param local_vars: ?
+        :return: True is a match has been found, otherwise False
+        """
         status = self.constrain_match(node, local_vars)
 
         if status and self.children:
@@ -92,20 +111,27 @@ class TreePattern(Tree):
         return self.get_ascii(show_internal=True, attributes=["constraint"])
 
     def preprocess(self, tree):
-        """ create cache  """
+        """
+        :param tree: Patern tree. A cache is made available on all nodes of the tree when searches require
+                    repetitive traversal.
+        """
         self.temp_leaf_cache = tree.get_cached_content()
+
+        self.all_node_cache = tree.get_cached_content(leaves_only=False)
 
         # pass by reference, so dictionary is available on all nodes
         for node in self.traverse():
             node.temp_leaf_cache = self.temp_leaf_cache
-
-        # notes on how to add a custom cache, will do for distance2node
-        # self.add_feature("leaves", [node for node in self.get_leaf_names()])
-        # temp_cache=tree.get_cached_content(store_attr="leaves", leaves_only=False)
-        # this is equivalent to t.get_cached_content(store_attr="name"), just using it here as an example
+            node.all_node_cache = self.all_node_cache
 
     def find_match(self, tree, local_vars, maxhits=1):
 
+        """
+        :param tree: tree to be searched for a matching pattern.
+        :param local_vars: ?
+        :param maxhits: Number of matches to be searched for.
+        :param None maxhits: Pattern search loop will continue until all matches are found.
+        """
         if self.cache_flag == 1:
             self.preprocess(tree)
 
@@ -120,9 +146,15 @@ class TreePattern(Tree):
                 break
 
 
-
-
     def _parse_constraint(self, node, is_exact=False):
+        """
+        Function for replacing keywords with python code in a query pattern.
+
+        :param node: The pattern be searched for in the query.
+        :param is_exact: Designates if pattern is in standard Newick format or contains treematcher syntax.
+        :param True is_exact: Pattern is a tree standard Newick format, search for exact match of tree.
+        :param False is_exact:  Pattern contains treematcher syntax and requires keyword to python conversion.
+        """
         node.constraint = node.name
 
         if is_exact and node.name != '':
@@ -143,21 +175,27 @@ class TreePattern(Tree):
                 node.constraint = self.smart_lineage(node.constraint)
 
 
-
-        return
+    def get_cached_attr(self, attr_name, node):
+        """
+        :param attr_name: any attribute cached in tree nodes (e.g., species, name, dist, support, etc.)
+        :param node: The pattern tre containing the cache
+        :return: cached values for the requested attribute (e.g., Homo sapiens, Human, 1.0, etc.)
+        """
+        values = set(getattr(n, attr_name, None) for n in self.all_node_cache[node])
+        values.discard(None)
+        print values
+        return values
 
     def smart_lineage(self, constraint):
+
         """
-        Returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage.
+        :param constraint: The entire pattern being searched for which includes @.lineage.
+        :return:  Returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage.
         For example, if a string is given before the "in @.linage" in a query, will get names instead of tax ids.
-        Note that names for genus rank and higher ranks must be capitalized.
+        Note that names for genus rank and higher ranks must be capitalized. Function should work for
+         constraint that contains something besides the given target node  (e.g., @.chilren[0].lineage)
         """
-
-        #if constraint contains .chilren[0].search, grab that and replace
-
         parsedPattern = ast.parse(constraint, mode='eval')
-
-        #look in pattern at abstract syntax tree, the left sibling to @.lineage
 
         lineage_node = [n for n in ast.walk(parsedPattern)
                         if hasattr(n, 'comparators') and type(n.comparators[0]) == ast.Attribute
@@ -175,18 +213,9 @@ class TreePattern(Tree):
                 if index == 0:
                     constraint = constraint.replace(str(extracted_target), syntax, 1)
                 else:
-                    # constraint = re.sub(r'^((.*?__target\.lineage.*?){{{index}}})__target\.lineage'.
-                    #                    format(index=index),
-                    #                    r'\1' + syntax, constraint)
-
-                    # constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){{{index}}})' + extracted_target +
-                    #                 .format(index=index),
-                    #             r'\1' + syntax, constraint)
 
                     constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){' + str(index) + r'})' + extracted_target,
                              r'\1' + syntax, constraint)
-
-            # else lineage_node[0].left.n exists and the prefix is a number, don't change anything
 
             index += 1
 
@@ -217,6 +246,24 @@ def test():
     print(list(pattern1.find_match(tree, None)))
     print(len(list(pattern1.find_match(tree, None))))
 
+def test2():
+    t = PhyloTree(
+        "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
+    t.set_species_naming_function(lambda node: node.name.split("_")[0])
+    #ntrees, ndups, sptrees = t.get_speciation_trees()
+    #print "Found %d species trees and %d duplication nodes" % (ntrees, ndups)
+    #for spt in sptrees:
+    #    print spt
+    print t
+    pattern = """( ' "Human" in @.contains_species and "Chimp" in @.contains_species   '); """
+    pattern = TreePattern(pattern, format=8, quoted_node_names=True)
+    print(len(list(pattern.find_match(t, None, maxhits=None))))
+
+    pattern1 = """( ' {"Human", "Chimp"} == @.contains_species   '); """
+    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
+    print(len(list(pattern1.find_match(t, None, maxhits=None))))
+
 
 if __name__ == "__main__":
-    test()
+    #test()
+    test2()

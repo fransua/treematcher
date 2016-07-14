@@ -6,6 +6,7 @@ import unittest
 
 class Test_TreePattern(unittest.TestCase):
     def test_ete_params(self):
+
         """
         tests exact match is working
         tests basic ete parameters like node.name, node.dist, node.support are working
@@ -38,10 +39,10 @@ class Test_TreePattern(unittest.TestCase):
         self.assertEqual(list(match2)[0].name, 'pasa')
 
     def test_syntax_to_python(self):
+
         """
         tests syntax we've created like node.leaves, node.children are working
-         """
-
+        """
         pattern1 = """( '  @.dist >= 0.5 ' , ' @.dist<2  ')
             '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[0] or "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[1] ';"""
 

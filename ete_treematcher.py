@@ -7,6 +7,10 @@ DESC=''
 
 
 def populate_args(extract_args_p):
+    """
+
+    :param extract_args_p:
+    """
     extract_args = extract_args_p.add_argument_group('TREEMATCHER OPTIONS')
 
     extract_args.add_argument("--pattern", dest="pattern",
