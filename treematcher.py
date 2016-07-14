@@ -23,25 +23,29 @@ class TreePattern(Tree):
 
     def __init__(self, *args, **kargs):
         """
-        :param args:
-        :param kargs:
+        :param args: Pattern to be searched
+        :param kargs: ?
+        :var is_exact: Searches exactly as Newick tree when True
+        :var searches: List of search keywords to flag for cache
+        :var cache_flag: flag to preprocess pattern and create cache
+
         """
         kargs["format"] = 1
 
-        self.cache_flag = 1
+        self.cache_flag = 0
 
         is_exact = False
 
         if len(args) > 0:
             pattern_string = args[0].strip()
 
-            # search exactly as Newick tree, no additional pattern
+
             if pattern_string.find('@') == -1:
                 is_exact = True
             else:
-                leaf_searches = ['@.leaves', "@.contains_species", "@.contains", "@.size"]
+                searches = ['@.leaves', "@.contains_species", "@.contains", "@.size"]
 
-                for search_type in leaf_searches:
+                for search_type in searches:
                     if pattern_string.find(search_type) != -1:
                         self.cache_flag = 1
 
@@ -58,7 +62,7 @@ class TreePattern(Tree):
     def constrain_match(self, __target, local_vars=None):
         """
         :param __target: represents a node you are looking to target. Replaces @ in a query.
-        :param local_vars: What was the intention of local_vars? Ask about this.
+        :param local_vars: Dictionary of treematcher class variables and functions for constraint evaluation
         :return: returns a boolean value of True if a match is found, otherwise False.
         """
         if not local_vars:
@@ -68,6 +72,7 @@ class TreePattern(Tree):
                            "smart_lineage": self.smart_lineage,
                            "ncbi": NCBITaxa(),
                            "get_cached_attr": self.get_cached_attr,
+                           "contains_species": self.contains_species,
                            })
 
         try:
@@ -88,7 +93,7 @@ class TreePattern(Tree):
 
         """
         :param node: A tree (root node) to be searched for a given pattern
-        :param local_vars: ?
+        :param local_vars:  Dictionary of treematcher class variables and functions for constraint evaluation
         :return: True is a match has been found, otherwise False
         """
         status = self.constrain_match(node, local_vars)
@@ -114,6 +119,9 @@ class TreePattern(Tree):
         """
         :param tree: Patern tree. A cache is made available on all nodes of the tree when searches require
                     repetitive traversal.
+        :var temp_leaf_cache: information about leaves to be cached.
+        :var: all_node_cache: information about every node to be cached
+
         """
         self.temp_leaf_cache = tree.get_cached_content()
 
@@ -128,7 +136,7 @@ class TreePattern(Tree):
 
         """
         :param tree: tree to be searched for a matching pattern.
-        :param local_vars: ?
+        :param local_vars:  Dictionary of treematcher class variables and functions for constraint evaluation
         :param maxhits: Number of matches to be searched for.
         :param None maxhits: Pattern search loop will continue until all matches are found.
         """
@@ -204,7 +212,7 @@ class TreePattern(Tree):
         index = 0
         for lineage_search in lineage_node:
             if hasattr(lineage_node[index].left,'s'):
-                # use re to find  and retrieve what is between __target and .lineage
+                # retrieve what is between __target and .lineage
                 found_target = (re.search(r'__target[^ ]*\.lineage', constraint).span())
                 extracted_target = constraint[found_target[0] : found_target[1]]
 
@@ -222,6 +230,39 @@ class TreePattern(Tree):
 
 
         return constraint
+
+
+    def contains(self, __target, species_list):
+         pass
+
+    def contains_species(self, __target, species_list):
+        cached_species = get_cached_attr('species', __target)
+        for sp in species_list:
+            # check to see if it is in the list
+            if sp in cached_species:
+                continue
+            else:
+                return False
+        return True
+
+    def number_of_species(__target):
+        pass
+
+    def is_duplication(__target):
+        # checks node.evol_type inferred with PhyloTree.get_descendant_evol_events()
+        pass
+
+    def is_speciation(__target):
+        # checks
+        pass
+
+    def size(__target):
+        pass
+
+    def has_match():
+        # return true if the target tree has at least one match
+        pass
+
 
 
 def test():
@@ -259,7 +300,7 @@ def test2():
     pattern = TreePattern(pattern, format=8, quoted_node_names=True)
     print(len(list(pattern.find_match(t, None, maxhits=None))))
 
-    pattern1 = """( ' {"Human", "Chimp"} == @.contains_species   '); """
+    pattern1 = """( '@.contains_species("Human", "Chimp")   '); """
     pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
     print(len(list(pattern1.find_match(t, None, maxhits=None))))
 
