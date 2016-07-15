@@ -37,6 +37,13 @@ class TreePattern(Tree):
 
         is_exact = False
 
+        self.all_node_cache = None
+
+        try:
+            self._extra_functions = kargs.pop('functions')
+        except KeyError:
+            self._extra_functions = None
+
         if len(args) > 0:
             pattern_string = args[0].strip()
 
@@ -53,8 +60,9 @@ class TreePattern(Tree):
 
         Tree.__init__(self, *args, **kargs)
         self.temp_leaf_cache={}
-
+        
         for n in self.traverse():
+            n._extra_functions = self._extra_functions
             if n.name != "NoName":
                 self._parse_constraint(n, is_exact)
             else:
@@ -73,20 +81,22 @@ class TreePattern(Tree):
                            "temp_leaf_cache": self.temp_leaf_cache,
                            "smart_lineage": self.smart_lineage,
                            "ncbi": NCBITaxa(),
-                           "get_cached_attr": self.get_cached_attr,
-                           "contains_species": self.contains_species,
+                           "pattern": self,
+                           "get_cached_attr": self.get_cached_attr
                            })
+        if self._extra_functions:
+            local_vars.update(self._extra_functions)
 
         try:
             st = eval(self.constraint, local_vars) if self.constraint else True  # eval string as python code
 
             st = bool(st)  # note that bool of any string returns true
         except ValueError:
-                raise ValueError("The following constraint expression did not return boolean result: %s BUT %s" %
-                                 (self.constraint, st))
+            raise ValueError("The following constraint expression did not return boolean result: %s BUT %s" %
+                             (self.constraint, st))
         except (AttributeError, IndexError) as err:
-                print('Warning: Constraint evaluation failed at ' + str(__target) + ' with error "' + str(err) + '"')
-                st = False
+            print('Warning: Constraint evaluation failed at ' + str(__target) + ' with error "' + str(err) + '"')
+            st = False
 
         return st
 
@@ -146,12 +156,21 @@ class TreePattern(Tree):
             self.preprocess(tree)
 
         num_hits = 0
+        num = 0
         for node in tree.traverse("preorder"):
+            num += 1
 
             if self.is_match(node, local_vars=local_vars):
+                print num, '- YES'
+                print node.write(format=9)
+                # print node
                 num_hits += 1
                 yield node
-
+            else:
+                print num, '- NOP'
+                print node.write(format=9)
+                # print node
+            print '-'*60
             if maxhits is not None and num_hits >= maxhits:
                 break
 
@@ -167,6 +186,9 @@ class TreePattern(Tree):
         """
         node.constraint = node.name
 
+        builtins = set(PhyloTree.__dict__.keys() + Tree.__dict__.keys())
+        
+
         if is_exact and node.name != '':
             node.constraint = "__target.name==" + "'" + str(node.constraint) + "'"
         else:
@@ -181,11 +203,16 @@ class TreePattern(Tree):
                 except (KeyError, ValueError):
                     print("Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code)
 
+            for attrib in re.findall("__target.([A-Za-z_0-9]+)\(", node.constraint):
+                if attrib not in builtins:
+                    node.constraint = re.sub("__target.([A-Za-z_0-9]+)\(([^)]+)",
+                                             "\\1(__target, pattern, (\\2)", node.constraint)
+
             if ".lineage" in node.constraint:
                 node.constraint = self.smart_lineage(node.constraint)
 
-            if "contains_species" in node.constraint:
-                node.constraint = self.contains_species(node.constraint, node)
+            # if "contains_species" in node.constraint:
+            #     node.constraint = self.contains_species(node.constraint, node)
 
     def get_cached_attr(self, attr_name, node):
         """
@@ -195,7 +222,6 @@ class TreePattern(Tree):
         """
         values = set(getattr(n, attr_name, None) for n in self.all_node_cache[node])
         values.discard(None)
-        print values
         return values
 
     def smart_lineage(self, constraint):
@@ -239,27 +265,19 @@ class TreePattern(Tree):
     def contains(self, __target, species_list):
          pass
 
-    def contains_species(self, constraint, __target):
-        print("constraint is", constraint)
-        found_species_list = (re.search(r'contains_species(.*\))', constraint).span())
-        extracted_species_constraint = constraint[found_species_list[0]-9: found_species_list[1]]
+    
+        # for sp in species_list:
+        #     if sp in cached_species:
+        #         continue
+        #     # Note, need to replace the entire part before .contains_species() as well, not just for __target.
+        #     # constraint = constraint.replace(str(extracted_species_constraint), "False")
+        #     # return constraint
+        #     return False
+        # # replace the entire part of the constraint for contains_species() with True
+        # # constraint = constraint.replace(str(extracted_species_constraint), "True")
 
-        sp_list = constraint[found_species_list[0] + 16: found_species_list[1]]
-        print("sp_list is", sp_list)
-        species_list = eval(sp_list)
-        cached_species = self.get_cached_attr('species', __target)
-
-        for sp in species_list:
-            if sp in cached_species:
-                continue
-            else:
-                # Note, need to replace the entire part before .contains_species() as well, not just for __target.
-                constraint = constraint.replace(str(extracted_species_constraint), "False")
-                return constraint
-        # replace the entire part of the constraint for contains_species() with True
-        constraint = constraint.replace(str(extracted_species_constraint), "True")
-
-        return constraint
+        # # return constraint
+        # return True
 
     def number_of_species(__target):
         pass
@@ -280,6 +298,29 @@ class TreePattern(Tree):
         pass
 
 
+def contains_species(__target, tpat, constraint):
+    tpat.preprocess(__target)
+
+    # print("constraint is: " + str(constraint))
+
+    # found_species_list = (re.search(r'contains_species(.*\))', constraint).span())
+
+    # extracted_species_constraint = constraint[found_species_list[0]-9:
+    #                                           found_species_list[1]]
+
+    # sp_list = constraint[found_species_list[0] + 16: found_species_list[1]]
+    # print("sp_list is", sp_list)
+    # species_list = eval(sp_list)
+    species_list = constraint
+    cached_species = tpat.get_cached_attr('species', __target)
+
+    # print __target
+    # print cached_species
+    result  = all(sp in cached_species for sp in species_list)
+    # print result
+    # print '-'*50
+    return result
+
 
 def test():
     pattern0 = """ ('   @.dist == 1 and "Gallus_gallus_1" in @.leaves ');"""
@@ -299,7 +340,6 @@ def test():
     print(len(list(pattern0.find_match(tree, None, maxhits=1))))
     print(len(list(pattern0.find_match(tree, None))))
 
-
     print(list(pattern1.find_match(tree, None)))
     print(len(list(pattern1.find_match(tree, None))))
 
@@ -317,8 +357,9 @@ def test2():
     #print(len(list(pattern.find_match(t, None, maxhits=None))))
 
     pattern1 = """( '@.contains_species("Human", "Chimp")   '); """
-    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
-    print(len(list(pattern1.find_match(t, None, maxhits=None))))
+    tp1 = TreePattern(pattern1, format=8, quoted_node_names=True,
+                      functions={'contains_species': contains_species})
+    print(len(list(tp1.find_match(t, None, maxhits=None))))
 
 
 if __name__ == "__main__":
