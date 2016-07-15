@@ -15,7 +15,6 @@ class TreePattern(Tree):
         ("__target.leaves",  "get_cached_attr('name', __target)"),
         ("__target.size", "len(get_cached_attr('name', __target))"),
         #("__target.contains_species", "get_cached_attr('species', __target)"),
-
         #("__target.size", "len(temp_leaf_cache[__target])"),
         # ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
         #("__target.leaves", "[n.name for n in temp_leaf_cache[__target]]"),
@@ -26,9 +25,6 @@ class TreePattern(Tree):
         """
         :param args: Pattern to be searched
         :param kargs: ?
-        :var is_exact: Searches exactly as Newick tree when True
-        :var searches: List of search keywords to flag for cache
-        :var cache_flag: flag to preprocess pattern and create cache
 
         """
         kargs["format"] = 1
@@ -131,8 +127,6 @@ class TreePattern(Tree):
         """
         :param tree: Patern tree. A cache is made available on all nodes of the tree when searches require
                     repetitive traversal.
-        :var temp_leaf_cache: information about leaves to be cached.
-        :var: all_node_cache: information about every node to be cached
 
         """
         self.temp_leaf_cache = tree.get_cached_content()
@@ -220,8 +214,8 @@ class TreePattern(Tree):
         :param node: The pattern tre containing the cache
         :return: cached values for the requested attribute (e.g., Homo sapiens, Human, 1.0, etc.)
         """
-        values = set(getattr(n, attr_name, None) for n in self.all_node_cache[node])
-        values.discard(None)
+        values = list(getattr(n, attr_name, None) for n in self.all_node_cache[node])
+        #values.discard(None)
         return values
 
     def smart_lineage(self, constraint):
@@ -262,64 +256,59 @@ class TreePattern(Tree):
         return constraint
 
 
-    def contains(self, __target, species_list):
-         pass
-
-    
-        # for sp in species_list:
-        #     if sp in cached_species:
-        #         continue
-        #     # Note, need to replace the entire part before .contains_species() as well, not just for __target.
-        #     # constraint = constraint.replace(str(extracted_species_constraint), "False")
-        #     # return constraint
-        #     return False
-        # # replace the entire part of the constraint for contains_species() with True
-        # # constraint = constraint.replace(str(extracted_species_constraint), "True")
-
-        # # return constraint
-        # return True
-
-    def number_of_species(__target):
-        pass
-
-    def is_duplication(__target):
-        # checks node.evol_type inferred with PhyloTree.get_descendant_evol_events()
-        pass
-
-    def is_speciation(__target):
-        # checks
-        pass
-
-    def size(__target):
-        pass
-
-    def has_match():
-        # return true if the target tree has at least one match
-        pass
-
-
 def contains_species(__target, tpat, constraint):
     tpat.preprocess(__target)
-
-    # print("constraint is: " + str(constraint))
-
-    # found_species_list = (re.search(r'contains_species(.*\))', constraint).span())
-
-    # extracted_species_constraint = constraint[found_species_list[0]-9:
-    #                                           found_species_list[1]]
-
-    # sp_list = constraint[found_species_list[0] + 16: found_species_list[1]]
-    # print("sp_list is", sp_list)
-    # species_list = eval(sp_list)
-    species_list = constraint
+    if isinstance(constraint, six.string_types):
+        species_list = [constraint]
+    else:
+        species_list=constraint
     cached_species = tpat.get_cached_attr('species', __target)
+    result = all(sp in cached_species for sp in species_list)
 
-    # print __target
-    # print cached_species
-    result  = all(sp in cached_species for sp in species_list)
-    # print result
-    # print '-'*50
     return result
+
+
+def contains(__target, tpat, constraint):
+    tpat.preprocess(__target)
+    if isinstance(constraint, six.string_types):
+        name_list = [constraint]
+    else:
+        name_list = constraint
+    cached_name = tpat.get_cached_attr('name', __target)
+    result = all(name in cached_name for name in name_list)
+    return result
+
+
+def number_of_species(__target, tpat, constraint):
+    tpat.preprocess(__target)
+    cached_species = tpat.get_cached_attr('species', __target)
+    result = len(cached_species)
+    print("result is", result)
+
+    return result
+
+
+def num_of_leaves(__target):
+    tpat.preprocess(__target)
+    cached_name = tpat.get_cached_attr('name', __target)
+    result = len(cached_name)
+    print("result is", result)
+
+    return result
+
+def is_duplication(__target):
+    # checks node.evol_type inferred with PhyloTree.get_descendant_evol_events()
+    pass
+
+def is_speciation(__target):
+    # checks
+    pass
+
+
+def has_match():
+    # call find match and return true if the target tree has at least one match
+    pass
+
 
 
 def test():
@@ -356,9 +345,11 @@ def test2():
     #pattern = TreePattern(pattern, format=8, quoted_node_names=True)
     #print(len(list(pattern.find_match(t, None, maxhits=None))))
 
-    pattern1 = """( '@.contains_species("Human", "Chimp")   '); """
+    pattern1 = """( '@.contains("Chimp_2", "Chimp_3")',  '@.number_of_species(1) '); """
     tp1 = TreePattern(pattern1, format=8, quoted_node_names=True,
-                      functions={'contains_species': contains_species})
+                      functions={'contains': contains,
+                                 "contains_species": contains_species,
+                                 "number_of_species": number_of_species})
     print(len(list(tp1.find_match(t, None, maxhits=None))))
 
 
