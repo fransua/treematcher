@@ -8,8 +8,13 @@ from ete3 import PhyloTree, Tree, NCBITaxa
 
 
 class TreePattern(Tree):
+    """
+        class for presenting a tree of constrained patterns. A way to represent patterns to search for within trees.
 
+        :param args: Pattern to be searched
+        :param kargs: Arguments passed to Tree Class
 
+    """
     _syntax_tuples = [
         ("@", "__target"),
         ("__target.leaves",  "get_cached_attr('name', __target)"),
@@ -22,11 +27,7 @@ class TreePattern(Tree):
     ]
 
     def __init__(self, *args, **kargs):
-        """
-        :param args: Pattern to be searched
-        :param kargs: ?
 
-        """
         kargs["format"] = 1
 
         self.cache_flag = 0
@@ -37,12 +38,12 @@ class TreePattern(Tree):
 
         try:
             self._extra_functions = kargs.pop('functions')
+
         except KeyError:
             self._extra_functions = None
 
         if len(args) > 0:
             pattern_string = args[0].strip()
-
 
             if pattern_string.find('@') == -1:
                 is_exact = True
@@ -53,20 +54,24 @@ class TreePattern(Tree):
                     if pattern_string.find(search_type) != -1:
                         self.cache_flag = 1
 
+        #Tree.__init__(self, *args, **kargs)
+        super(TreePattern, self).__init__(*args, **kargs)
+        self.temp_leaf_cache = {}
+        # all of this only happens in the root node
+        if len(args)>0:
 
-        Tree.__init__(self, *args, **kargs)
-        self.temp_leaf_cache={}
-        
-        for n in self.traverse():
-            n._extra_functions = self._extra_functions
-            if n.name != "NoName":
-                self._parse_constraint(n, is_exact)
-            else:
-                n.constraint = None
+            for n in self.traverse():
+                n._extra_functions = self._extra_functions
+
+                if n.name != "NoName":
+                    self._parse_constraint(n, is_exact)
+                else:
+                    n.constraint = None
 
 
     def constrain_match(self, __target, local_vars=None):
         """
+        Evaluate constraint on a single node. Checks whether a single node matches a single constraint.
         :param __target: represents a node you are looking to target. Replaces @ in a query.
         :param local_vars: Dictionary of treematcher class variables and functions for constraint evaluation
         :return: returns a boolean value of True if a match is found, otherwise False.
@@ -84,7 +89,7 @@ class TreePattern(Tree):
             local_vars.update(self._extra_functions)
 
         try:
-            st = eval(self.constraint, local_vars) if self.constraint else True  # eval string as python code
+            st = eval(self.constraint, local_vars) if self.constraint else True
 
             st = bool(st)  # note that bool of any string returns true
         except ValueError:
@@ -100,6 +105,7 @@ class TreePattern(Tree):
     def is_match(self, node, local_vars=None):
 
         """
+        Check all constraints on a tree. Permutes the tree and checks that all constrinats return True. CHecks whther a single node and its children match a given pattern
         :param node: A tree (root node) to be searched for a given pattern
         :param local_vars:  Dictionary of treematcher class variables and functions for constraint evaluation
         :return: True is a match has been found, otherwise False
@@ -141,6 +147,7 @@ class TreePattern(Tree):
     def find_match(self, tree, local_vars, maxhits=1):
 
         """
+
         :param tree: tree to be searched for a matching pattern.
         :param local_vars:  Dictionary of treematcher class variables and functions for constraint evaluation
         :param maxhits: Number of matches to be searched for.
@@ -180,7 +187,7 @@ class TreePattern(Tree):
         """
         node.constraint = node.name
 
-        builtins = set(PhyloTree.__dict__.keys() + Tree.__dict__.keys())
+        #builtins = set(PhyloTree.__dict__.keys() + Tree.__dict__.keys())
         
 
         if is_exact and node.name != '':
@@ -197,10 +204,19 @@ class TreePattern(Tree):
                 except (KeyError, ValueError):
                     print("Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code)
 
-            for attrib in re.findall("__target.([A-Za-z_0-9]+)\(", node.constraint):
-                if attrib not in builtins:
-                    node.constraint = re.sub("__target.([A-Za-z_0-9]+)\(([^)]+)",
-                                             "\\1(__target, pattern, (\\2)", node.constraint)
+            #for attrib in re.findall("__target.([A-Za-z_0-9]+)\(", node.constraint):
+            #    if attrib not in builtins:
+            #        node.constraint = re.sub("__target.([A-Za-z_0-9]+)\(([^)]+)",
+            #                                 "\\1(__target, pattern, (\\2)", node.constraint)
+
+            #print "self._extra_functions are:", self._extra_functions
+            #Search for custom functions
+            for custom_function in self._extra_functions.keys():
+                #node.constraint = re.findall(custom_function + "([A-Za-z_0-9]+)\(", node.constraint)
+                node.constraint = re.sub(custom_function + "\(__target",
+                                         custom_function + "(__target, pattern", node.constraint)
+
+            #custom function of stuff tpat=whatever
 
             if ".lineage" in node.constraint:
                 node.constraint = self.smart_lineage(node.constraint)
@@ -221,11 +237,12 @@ class TreePattern(Tree):
     def smart_lineage(self, constraint):
 
         """
-        :param constraint: The entire pattern being searched for which includes @.lineage.
-        :return:  Returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage.
         For example, if a string is given before the "in @.linage" in a query, will get names instead of tax ids.
         Note that names for genus rank and higher ranks must be capitalized. Function should work for
          constraint that contains something besides the given target node  (e.g., @.chilren[0].lineage)
+        :param constraint: The entire pattern being searched for which includes @.lineage.
+        :return:  Returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage.
+
         """
         parsedPattern = ast.parse(constraint, mode='eval')
 
@@ -345,7 +362,7 @@ def test2():
     #pattern = TreePattern(pattern, format=8, quoted_node_names=True)
     #print(len(list(pattern.find_match(t, None, maxhits=None))))
 
-    pattern1 = """( '@.contains("Chimp_2", "Chimp_3")',  '@.number_of_species(1) '); """
+    pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))',  'number_of_species(@, 1) '); """
     tp1 = TreePattern(pattern1, format=8, quoted_node_names=True,
                       functions={'contains': contains,
                                  "contains_species": contains_species,
