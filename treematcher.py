@@ -9,17 +9,15 @@ from ete3 import PhyloTree, Tree, NCBITaxa
 
 class TreePattern(Tree):
     """
-        class for presenting a tree of constrained patterns. A way to represent patterns to search for within trees.
-
-        :param args: Pattern to be searched
-        :param kargs: Arguments passed to Tree Class
-
+        Class for presenting a tree of constrained patterns. A way to represent patterns to search for within trees.
+        :param args: Pattern to be searched.
+        :param kargs: Custom functions and arguments passed to Tree Class.
     """
     _syntax_tuples = [
         ("@", "__target"),
         ("__target.leaves",  "get_cached_attr('name', __target)"),
         ("__target.size", "len(get_cached_attr('name', __target))"),
-        #("__target.contains_species", "get_cached_attr('species', __target)"),
+        ("__target.contains_species", "get_cached_attr('species', __target)"),
         #("__target.size", "len(temp_leaf_cache[__target])"),
         # ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
         #("__target.leaves", "[n.name for n in temp_leaf_cache[__target]]"),
@@ -27,14 +25,16 @@ class TreePattern(Tree):
     ]
 
     def __init__(self, *args, **kargs):
-
         kargs["format"] = 1
-
-        self.cache_flag = 0
 
         is_exact = False
 
+        self.cache_flag = 0
         self.all_node_cache = None
+
+        self.evol_events_flag = 0
+        self.evol_events = None
+
 
         try:
             self._extra_functions = kargs.pop('functions')
@@ -48,11 +48,14 @@ class TreePattern(Tree):
             if pattern_string.find('@') == -1:
                 is_exact = True
             else:
-                searches = ['.leaves', ".contains_species", ".contains", ".size"]
+                cached_searches = ['.leaves', ".contains_species", ".contains", ".size"]
 
-                for search_type in searches:
+                for search_type in cached_searches:
                     if pattern_string.find(search_type) != -1:
                         self.cache_flag = 1
+                if pattern_string.find("is_duplication")!= -1 or pattern_string.find("is_speciation") != -1:
+                    self.evol_events_flag = 1
+
 
         #Tree.__init__(self, *args, **kargs)
         super(TreePattern, self).__init__(*args, **kargs)
@@ -71,7 +74,7 @@ class TreePattern(Tree):
 
     def constrain_match(self, __target, local_vars=None):
         """
-        Evaluate constraint on a single node. Checks whether a single node matches a single constraint.
+        Evaluate constraint on a single node. This functions checks whether a single node matches a single constraint.
         :param __target: represents a node you are looking to target. Replaces @ in a query.
         :param local_vars: Dictionary of treematcher class variables and functions for constraint evaluation
         :return: returns a boolean value of True if a match is found, otherwise False.
@@ -103,12 +106,12 @@ class TreePattern(Tree):
 
 
     def is_match(self, node, local_vars=None):
-
         """
-        Check all constraints on a tree. Permutes the tree and checks that all constrinats return True. CHecks whther a single node and its children match a given pattern
-        :param node: A tree (root node) to be searched for a given pattern
-        :param local_vars:  Dictionary of treematcher class variables and functions for constraint evaluation
-        :return: True is a match has been found, otherwise False
+        Check all constraints on a tree. Permutes the tree and checks that all constraints return True.
+        Funtion checks whether a single node and its children match a given pattern.
+        :param node: A tree (root node) to be searched for a given pattern.
+        :param local_vars:  Dictionary of TreePattern class variables and functions for constraint evaluation.
+        :return: True is a match has been found, otherwise False.
         """
         status = self.constrain_match(node, local_vars)
 
@@ -127,33 +130,40 @@ class TreePattern(Tree):
         return status
     
     def __str__(self):
+        """
+        Overrides method in TreeNode
+        """
         return self.get_ascii(show_internal=True, attributes=["constraint"])
 
     def preprocess(self, tree):
         """
-        :param tree: Patern tree. A cache is made available on all nodes of the tree when searches require
-                    repetitive traversal.
-
+        Creates cache for attributes that require multiple tree traversal.
+         Cache is available on all nodes of the tree.
+        :param tree: Pattern being searched for.
         """
-        self.temp_leaf_cache = tree.get_cached_content()
+        if self.evol_events_flag == 1:
+            self.evol_events = tree.get_descendant_evol_events()
+            print("self.evol_events are first", self.evol_events)
+        #self.temp_leaf_cache = tree.get_cached_content()
 
         self.all_node_cache = tree.get_cached_content(leaves_only=False)
 
+
         # pass by reference, so dictionary is available on all nodes
         for node in self.traverse():
-            node.temp_leaf_cache = self.temp_leaf_cache
+            #node.temp_leaf_cache = self.temp_leaf_cache
             node.all_node_cache = self.all_node_cache
+            node.evol_events = self.evol_events
 
     def find_match(self, tree, local_vars, maxhits=1):
-
         """
-
+        A pattern search continues until the number of specified matches are found.
         :param tree: tree to be searched for a matching pattern.
-        :param local_vars:  Dictionary of treematcher class variables and functions for constraint evaluation
+        :param local_vars:  Dictionary of TreePattern class variables and functions for constraint evaluation
         :param maxhits: Number of matches to be searched for.
-        :param None maxhits: Pattern search loop will continue until all matches are found.
+        :param None maxhits: Pattern search will continue until all matches are found.
         """
-        if self.cache_flag == 1:
+        if self.cache_flag == 1 or self.evol_events_flag == 1:
             self.preprocess(tree)
 
         num_hits = 0
@@ -162,16 +172,16 @@ class TreePattern(Tree):
             num += 1
 
             if self.is_match(node, local_vars=local_vars):
-                print num, '- YES'
-                print node.write(format=9)
+                #print(num, '- YES')
+                #print(node.write(format=9))
                 # print node
                 num_hits += 1
                 yield node
-            else:
-                print num, '- NOP'
-                print node.write(format=9)
-                # print node
-            print '-'*60
+            #else:
+                #print(num, '- NOP')
+                #print(node.write(format=9))
+                #print node
+            #print('-'*60)
             if maxhits is not None and num_hits >= maxhits:
                 break
 
@@ -179,7 +189,6 @@ class TreePattern(Tree):
     def _parse_constraint(self, node, is_exact=False):
         """
         Function for replacing keywords with python code in a query pattern.
-
         :param node: The pattern be searched for in the query.
         :param is_exact: Designates if pattern is in standard Newick format or contains treematcher syntax.
         :param True is_exact: Pattern is a tree standard Newick format, search for exact match of tree.
@@ -204,15 +213,8 @@ class TreePattern(Tree):
                 except (KeyError, ValueError):
                     print("Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code)
 
-            #for attrib in re.findall("__target.([A-Za-z_0-9]+)\(", node.constraint):
-            #    if attrib not in builtins:
-            #        node.constraint = re.sub("__target.([A-Za-z_0-9]+)\(([^)]+)",
-            #                                 "\\1(__target, pattern, (\\2)", node.constraint)
-
-            #print "self._extra_functions are:", self._extra_functions
             #Search for custom functions
             for custom_function in self._extra_functions.keys():
-                #node.constraint = re.findall(custom_function + "([A-Za-z_0-9]+)\(", node.constraint)
                 node.constraint = re.sub(custom_function + "\(__target",
                                          custom_function + "(__target, pattern", node.constraint)
 
@@ -221,28 +223,27 @@ class TreePattern(Tree):
             if ".lineage" in node.constraint:
                 node.constraint = self.smart_lineage(node.constraint)
 
-            # if "contains_species" in node.constraint:
-            #     node.constraint = self.contains_species(node.constraint, node)
 
     def get_cached_attr(self, attr_name, node):
         """
+        Access cached attributes on trees.
         :param attr_name: any attribute cached in tree nodes (e.g., species, name, dist, support, etc.)
-        :param node: The pattern tre containing the cache
+        :param node: The pattern tree containing the cache
         :return: cached values for the requested attribute (e.g., Homo sapiens, Human, 1.0, etc.)
         """
         values = list(getattr(n, attr_name, None) for n in self.all_node_cache[node])
         #values.discard(None)
         return values
 
-    def smart_lineage(self, constraint):
 
+    def smart_lineage(self, constraint):
         """
-        For example, if a string is given before the "in @.linage" in a query, will get names instead of tax ids.
-        Note that names for genus rank and higher ranks must be capitalized. Function should work for
-         constraint that contains something besides the given target node  (e.g., @.chilren[0].lineage)
+        Get names instead of tax ids if a string is given before the "in @.linage" in a query.
+        Otherwise, returns Taxonomy ids.
+        Function also works for constraint that contains something besides the given target node
+        (e.g., @.chilren[0].lineage)
         :param constraint: The entire pattern being searched for which includes @.lineage.
         :return:  Returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage.
-
         """
         parsedPattern = ast.parse(constraint, mode='eval')
 
@@ -268,54 +269,101 @@ class TreePattern(Tree):
 
             index += 1
 
-
-
         return constraint
 
 
-def contains_species(__target, tpat, constraint):
-    tpat.preprocess(__target)
-    if isinstance(constraint, six.string_types):
-        species_list = [constraint]
-    else:
-        species_list=constraint
-    cached_species = tpat.get_cached_attr('species', __target)
-    result = all(sp in cached_species for sp in species_list)
+def contains_species(__target, __pattern, species_list):
+    """
+    Shortcut function to find the species(s) within a node or any of it's descendants.
+    :param __target: Internal use
+    :param __pattern: Internal use
+    :param species_list: list of species being searched for
+    :return: True if all species in list are found, otherwise False.
+    """
+    __pattern.preprocess(__target)
+    if isinstance(species_list, six.string_types):
+        species_list = [species_list]
 
+    cached_species = __pattern.get_cached_attr('species', __target)
+    result = all(sp in cached_species for sp in species_list)
     return result
 
 
-def contains(__target, tpat, constraint):
-    tpat.preprocess(__target)
-    if isinstance(constraint, six.string_types):
-        name_list = [constraint]
-    else:
-        name_list = constraint
-    cached_name = tpat.get_cached_attr('name', __target)
+def contains(__target, __pattern, name_list):
+    """
+    Shortcut function to find the name(s) within a node or any of it's descendants.
+    :param __target: Internal use
+    :param __pattern: Internal use
+    :param name_list: List of names to be searched for at a node.
+    :return: True if all names in name_list are found, otherwise False.
+    """
+    __pattern.preprocess(__target)
+
+    if isinstance(name_list, six.string_types):
+        name_list = [name_list]
+
+    cached_name = __pattern.get_cached_attr('name', __target)
     result = all(name in cached_name for name in name_list)
     return result
 
 
-def number_of_species(__target, tpat, constraint):
-    tpat.preprocess(__target)
-    cached_species = tpat.get_cached_attr('species', __target)
-    result = len(cached_species)
-    print("result is", result)
+def number_of_species(__target, __pattern, num):
+    """
+    Shortcut function to find the number of species within a node or any of it's descendants.
+    :param __target: Internal use.
+    :param __pattern: Internal use.
+    :param num: number of species searched for at a node.
+    :return: True if number of descendant species is equal to num, otherwise False.
+    """
+    #__pattern.preprocess(__target)
+    cached_species = __pattern.get_cached_attr('species', __target)
+    if num == len(cached_species):
+        result = True
+    else:
+        result = False
+
+    print("num species result is", result)
 
     return result
 
 
-def num_of_leaves(__target):
-    tpat.preprocess(__target)
-    cached_name = tpat.get_cached_attr('name', __target)
-    result = len(cached_name)
-    print("result is", result)
+def number_of_leaves(__target,__pattern, num):
+    """
+    Shortcut function to find the number of leaves within a node or any of it's descendants.
+    :param __target: Internal use.
+    :param __pattern: Internal use.
+    :param num: Number of descendant leaves to be searched for.
+    :return: True if all number of leaves matches num, otherwise False.
+    """
+    cached_name = __pattern.get_cached_attr('name', __target)
+    if num == len(cached_name):
+        result = True
+    else:
+        result = False
+
+    print("num leaves result is", result)
 
     return result
 
-def is_duplication(__target):
+def is_duplication(__target, __pattern):
     # checks node.evol_type inferred with PhyloTree.get_descendant_evol_events()
-    pass
+    print("evol_events are", __pattern.evol_events)
+    print("__target is", __target)
+    try:
+        for event in __pattern.evol_events:
+            #print("__target is", __target)
+            #print("event is", event)
+            #print("evol_events node is", __pattern.evol_events.node)
+            #print("etype is", event.etype)
+            #if __target in event.node and event.etype == 'D':
+            result = True
+            #print("events is", event)
+
+    except: #We have a leaf, no evol event here
+        result = False
+        print("exception occured")
+
+    return result
 
 def is_speciation(__target):
     # checks
@@ -328,7 +376,7 @@ def has_match():
 
 
 
-def test():
+def test_cached_attributes():
     pattern0 = """ ('   @.dist == 1 and "Gallus_gallus_1" in @.leaves ');"""
     pattern1 = """( '  @.dist >= 0.5 ' , ' @.dist<2  ')
        '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[0] or
@@ -345,11 +393,10 @@ def test():
     print(len(list(pattern0.find_match(tree, None, maxhits=None))))
     print(len(list(pattern0.find_match(tree, None, maxhits=1))))
     print(len(list(pattern0.find_match(tree, None))))
-
     print(list(pattern1.find_match(tree, None)))
     print(len(list(pattern1.find_match(tree, None))))
 
-def test2():
+def test_shortcut_functions():
     t = PhyloTree(
         "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
     t.set_species_naming_function(lambda node: node.name.split("_")[0])
@@ -357,19 +404,29 @@ def test2():
     #print "Found %d species trees and %d duplication nodes" % (ntrees, ndups)
     #for spt in sptrees:
     #    print spt
-    #print t
-    #pattern = """( ' "Human" in @.contains_species and "Chimp" in @.contains_species   '); """
-    #pattern = TreePattern(pattern, format=8, quoted_node_names=True)
-    #print(len(list(pattern.find_match(t, None, maxhits=None))))
+    events = t.get_descendant_evol_events()
+    for evol_event in events:
+        print(evol_event.node)
 
-    pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))',  'number_of_species(@, 1) '); """
-    tp1 = TreePattern(pattern1, format=8, quoted_node_names=True,
-                      functions={'contains': contains,
-                                 "contains_species": contains_species,
-                                 "number_of_species": number_of_species})
-    print(len(list(tp1.find_match(t, None, maxhits=None))))
+    #print("events are", events)
+
+    pattern = """( ' is_duplication(@) '); """
+    pattern = TreePattern(pattern, format=8, quoted_node_names=True,
+                          functions={'contains_species': contains_species,
+                                     'is_duplication': is_duplication,
+                                    'is speciation': is_speciation
+                                    })
+    print(len(list(pattern.find_match(t, None, maxhits=None))))
+
+    #pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))',  'leaf_num(@, "2") and sp_num(@,"2")'); """
+    #tp1 = TreePattern(pattern1, format=8, quoted_node_names=True,
+    #                  functions={'contains': contains,
+    #                             "contains_species": contains_species,
+    #                             "sp_num": number_of_species,
+    #                             "leaf_num": number_of_leaves})
+    #print(len(list(tp1.find_match(t, None, maxhits=None))))
 
 
 if __name__ == "__main__":
-    #test()
-    test2()
+    #test_cached_attributes()
+    test_shortcut_functions()
