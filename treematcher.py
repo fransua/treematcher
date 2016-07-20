@@ -346,18 +346,25 @@ def number_of_leaves(__target,__pattern, num):
     return result
 
 def is_duplication(__target, __pattern):
-    # checks node.evol_type inferred with PhyloTree.get_descendant_evol_events()
-    print("evol_events are", __pattern.evol_events)
-    print("__target is", __target)
+    """
+        Shortcut function to find whether a node is a duplication. Checks node.evol_type inferred with
+        PhyloTree.get_descendant_evol_events().
+        :param __target: Internal use.
+        :param __pattern: Internal use.
+        :return: True if node is a duplication, otherwise False.
+    """
+    result = False
     try:
         for event in __pattern.evol_events:
-            #print("__target is", __target)
-            #print("event is", event)
-            #print("evol_events node is", __pattern.evol_events.node)
-            #print("etype is", event.etype)
-            #if __target in event.node and event.etype == 'D':
-            result = True
-            #print("events is", event)
+            if __target == event.node and event.etype == 'D':
+                result = True
+                print "match found"
+                print("__target is", __target)
+                print("evol_events node is", event.node)
+                print event.node
+                break
+            else:
+                continue
 
     except: #We have a leaf, no evol event here
         result = False
@@ -366,8 +373,31 @@ def is_duplication(__target, __pattern):
     return result
 
 def is_speciation(__target):
-    # checks
-    pass
+    """
+        Shortcut function to find whether a node is a duplication. Checks node.evol_type inferred with
+        PhyloTree.get_descendant_evol_events().
+        :param __target: Internal use.
+        :param __pattern: Internal use.
+        :return: True if node is a duplication, otherwise False.
+    """
+    result = False
+    try:
+        for event in __pattern.evol_events:
+            if __target == event.node and event.etype == 'S':
+                result = True
+                print "match found"
+                print("__target is", __target)
+                print("evol_events node is", event.node)
+                print event.node
+                break
+            else:
+                continue
+
+    except:  # no evol_events on __pattern
+        result = False
+        print("exception occured")
+
+    return result
 
 
 def has_match():
@@ -404,24 +434,23 @@ def test_shortcut_functions():
     #print "Found %d species trees and %d duplication nodes" % (ntrees, ndups)
     #for spt in sptrees:
     #    print spt
-    events = t.get_descendant_evol_events()
-    for evol_event in events:
-        print(evol_event.node)
-
-    #print("events are", events)
-
-    pattern = """( ' is_duplication(@) '); """
+    #events = t.get_descendant_evol_events()
+    #for Enode in events:
+    #    if Enode.etype=='D':
+    #        print Enode.node
+    #        print 'D'
+    pattern = """('')' is_duplication(@) '; """
     pattern = TreePattern(pattern, format=8, quoted_node_names=True,
                           functions={'contains_species': contains_species,
                                      'is_duplication': is_duplication,
                                     'is speciation': is_speciation
                                     })
+    #should return 5
     print(len(list(pattern.find_match(t, None, maxhits=None))))
 
     #pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))',  'leaf_num(@, "2") and sp_num(@,"2")'); """
     #tp1 = TreePattern(pattern1, format=8, quoted_node_names=True,
     #                  functions={'contains': contains,
-    #                             "contains_species": contains_species,
     #                             "sp_num": number_of_species,
     #                             "leaf_num": number_of_leaves})
     #print(len(list(tp1.find_match(t, None, maxhits=None))))
