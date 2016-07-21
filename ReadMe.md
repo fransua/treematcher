@@ -14,19 +14,19 @@ Examples
 |  syntax       						| meaning       						|  Comments																|
 | ----------------------------------	|:----------------------------------:	|:---------------------------------------------------------------------:|
 | @	            						| node, default for nodes left blank	| Use @.attribute to access an attribute, function(@) to access function|
-| "sample1"								| equivalent to @.name == "sample1" 	| Looking for multiple names, use list: @.name in ("sample1","sample2") |
+| sample1								| equivalent to @.name == "sample1" 	| Looking for multiple names, use list: @.name in ("sample1","sample2") |
 | @.dist >= 0.5     					| branch length no less than 0.5		| 	Use any of the following: <, <=, ==, >=								|
 | @.support > 0.9	            		| Has a support value greater than 0.90	| 																		|
 | @.species=="Homo sapiens"	    		| Homo sapiens is species of node		| See set_species_naming_function()	for details							|
 | 9606 in @.lineage	            		| Homo sapiens in @.lineage				| Find NCBI taxonomy ID or the full scientific name	in a node's lineage	|
-| @.sci_name == "Euarchontoglires" 		| scientific name is Euarchontoglires	| See annotate_ncbi_taxa() function for details 						|
-| @.rank=="subfamily" 					| node is ranked at the subfamily level	| See annotate_ncbi_taxa() function for details							|
+| @.sci_name == Euarchontoglires 		| scientific name is Euarchontoglires	| See annotate_ncbi_taxa() function for details 						|
+| @.rank == subfamily 					| node is ranked at the subfamily level	| See annotate_ncbi_taxa() function for details							|
 | @.taxid == 207598						|20758 is the taxid	of the node			| See annotate_ncbi_taxa() function for details							|
-| "Pan_troglodytes_1" in @.leaves		| Pan_troglodytes_1 is descendant leaf	| Find the leaf name within a list of leaf names						|
+| Pan_troglodytes_1 in @.leaves		| Pan_troglodytes_1 is descendant leaf	| Find the leaf name within a list of leaf names						|
 | len(@.children)						| number of children					| use quotes to differentiate parentheses from Newick Structure			|
 | "Homo sapiens" in @.contains_species	| find species contained in a leaf		| custom attribute														|
 | @.size > 5							| number of descendants/size of tree	| custom attribute 														|
-| "H_saps_1" in @.leaves				| find name H_saps_1 in leaves			| custom attribute														|
+| H_saps_1 in @.leaves				| find name H_saps_1 in leaves			| custom attribute														|
 
 
 ### How to use Newick format to access the structure of a tree
