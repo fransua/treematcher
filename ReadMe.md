@@ -12,11 +12,10 @@ The simplest way to write a pattern is to begin with a string surrounded by thre
 Example 1: Find a node named "sample_1".
 ```
 pattern1 =' sample_1 ;'	 # begin with a string
-pattern1 = TreePattern(pattern1)  # create a TtreePattern Instance
+pattern1 = TreePattern(pattern1)  # create a TreePattern Instance
+
 ```
-
 Example 2: Find a tree where sample_1 and sample_2 are siblings.
-
 ```
 pattern2 = ' sample_1, sample_2 ; '  #  comma is used separate sibling nodes
 pattern2 = TreePattern(pattern2)  # create the TreePattern Instance
@@ -63,12 +62,14 @@ Example 4: For the following tree, find the node that matches pattern2.
 tree = Tree("(sample_1,(sample_1,sample_2)sample_0)sample_0:1;", format = 8)
 
 ```
-print pattern2.find_match(tree, None)
+solution_4 = pattern2.find_match(tree, None)
+print(list(solution_4))
 ```
 
 Example 5: Find the total number of pattern3 matches in the same tree as above.
 ```
-print len(pattern2.find_match(tree, None, maxhits=None)
+solution_5 = len(list(pattern2.find_match(tree, None, maxhits=None)))
+print(solution_5)
 ```
 
 
@@ -76,14 +77,24 @@ print len(pattern2.find_match(tree, None, maxhits=None)
 Write your own functions and provide them as local variables to the treematcher program. To differentiate the parentheses of a set, tuple, or function in your pattern as separate from the parentheses of the Newick format, use quoted node names. You can alter the function names using a dictionary. For example, suppose you have written two functions: num_of_species and num_of_leaves. Access these functions as follows.
 
 ```
-pattern5 = """ 'sn(@, 2) and ln(@,2)' ; """
+pattern6 = """ 'sn(@, 2) and ln(@,2)' ; """
 
-pattern5 = TreePattern(pattern5, format=8, quoted_node_names=True,
+pattern6 = TreePattern(pattern6, format=8, quoted_node_names=True,
                       functions={"sn": number_of_species,
                                  "ln": number_of_leaves})
 
-pattern5.find_match(tree, None, maxhits=None)
+solution_6 = pattern6.find_match(tree, None, maxhits=None)
+print(list(solution_6))
 ```
 
 ### Command line tool
+|  argument       						| meaning       						|
+| ----------------------------------	|:-------------------------------------:|
+| --pattern								| string of  pattern in Newick format	|
+| --pattern-format						| format for patter, default = 1		|
+| --trees								| list of trees to search				|
+| --tree-format							| format for trees, default = 1			|									|
+| --quoted-node-names 					| default = False						|
+
+
 ete3 treematcher --pattern "(hello, kk);" --pattern-format 8 --tree-format 8 --trees "(hello,(1,2,3)kk);" --quoted-node-names
