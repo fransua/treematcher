@@ -4,12 +4,27 @@ In mathematics, a standard way of representing graphical trees with edge lengths
 
 ### Syntax
 
-ETE uses its own formalism to represent phylogenetic trees. A pattern can be written by accessing the attributes and functions available to an ETE tree, using Python code, or through custom functions and the pattern structure is created through the Newick format.
-The pattern is usually begins as a string surrounded by three double quotes at each end which is then used to create TreePattern instance. To differentiate the parentheses of a set, tuple, or function in your pattern verses the parentheses of Newick format, use quoted node names.
+ETE uses its own formalism to represent phylogenetic trees (see Tree class). A pattern can be written by accessing the attributes and functions available to an ETE Tree, using Python code directly, or through custom functions to use as constrinats. A tree pattern structure is created using the Newick format.
 
 
-Examples
+The simplest way to write a pattern is to begin with a string surrounded by three double quotes at each end. Then use it to create TreePattern instance. In the simplest case, you want to know something about a single node. If an attribute type is not specified, it is assumed that you are searching for a node name by default.
 
+Example 1: Find a node named "sample_1".
+```
+pattern1 =' sample_1 ;'	 # begin with a string
+pattern1 = TreePattern(pattern1)  # create a TtreePattern Instance
+```
+
+Example 2: Find a tree where sample_1 and sample_2 are siblings.
+
+```
+pattern2 = ' sample_1, sample_2 ; '  #  comma is used separate sibling nodes
+pattern2 = TreePattern(pattern2)  # create the TreePattern Instance
+```
+
+For a short list of commonly used constraints, use the following table.
+
+Table 1: Examples of common constraints.
 
 |  syntax       						| meaning       						|  Comments																|
 | ----------------------------------	|:----------------------------------:	|:---------------------------------------------------------------------:|
@@ -30,46 +45,45 @@ Examples
 
 
 ### How to use Newick format to access the structure of a tree
-Newick format access a tree structure. Use TreePattern (or its superclass tree) attributes and functions for the constraints on each node.
-Call the TreePattern function to create an instance of a tree pattern.
+Create a tree structure using Newick format. Replace the name of each node you want to search for with a constraint.
 
 
-Example 1: Find a tree where sample_1 and sample_2 are siblings.
+Example 3: Find a tree where sample_1 and sample_2 are children of the parent sample_0.  Note that the format type is set to 1 as the default which does not allow internal node names. Access other Newick format types by setting the format argument.
 ```
-pattern1 = """ sample_1, sample_2 ; """
-pattern1 = TreePattern(pattern1)
-```
-
-Example 2: Find a tree where sample_1 and sample_2 are children of the parent sample_0.  Note that the format type is set to 1 as the default. You can access other Newick format types by setting the format argument.
-```
-pattern2 = """ (sample_1, sample_2) sample_0 ; """
-pattern2 = TreePattern(pattern0, format=8)
+pattern3 = """ (sample_1, sample_2) sample_0 ; """
+pattern3 = TreePattern(pattern3, format=8)
 ```
 
 ### To Run
-To run, use the find_match function.
+To run, use the find_match function.  By default, find_match will look for one match. If you want to find every match on a tree, set the maximum number of hits to None.
 
 
-Example1: For the following tree, find the node that matches pattern1.
+Example 4: For the following tree, find the node that matches pattern2.
 
 tree = Tree("(sample_1,(sample_1,sample_2)sample_0)sample_0:1;", format = 8)
 
 ```
-pattern1.find_match(tree, None)
+print pattern2.find_match(tree, None)
 ```
 
-Example2: Find the total number of pattern2 matches in the same tree
-``` len(pattern2.find_match(tree, None, maxhits=None) ```
-
-
-### custom functions
-Write your own functions and provide them as local variables to the treematcher program. You can alter the function names using a dictionary. For example, suppose you have written two functions: num_of_species and num_of_leaves. Access these functions as follows.
+Example 5: Find the total number of pattern3 matches in the same tree as above.
 ```
-pattern3 = """ 'sn(@, 2) and ln(@,2)' ; """
+print len(pattern2.find_match(tree, None, maxhits=None)
+```
 
-pattern3 = TreePattern(pattern3, format=8, quoted_node_names=True,
+
+### Custom Functions
+Write your own functions and provide them as local variables to the treematcher program. To differentiate the parentheses of a set, tuple, or function in your pattern as separate from the parentheses of the Newick format, use quoted node names. You can alter the function names using a dictionary. For example, suppose you have written two functions: num_of_species and num_of_leaves. Access these functions as follows.
+
+```
+pattern5 = """ 'sn(@, 2) and ln(@,2)' ; """
+
+pattern5 = TreePattern(pattern5, format=8, quoted_node_names=True,
                       functions={"sn": number_of_species,
                                  "ln": number_of_leaves})
 
-pattern3.find_match(tree, None, maxhits=None)
+pattern5.find_match(tree, None, maxhits=None)
 ```
+
+### Command line tool
+ete3 treematcher --pattern "(hello, kk);" --pattern-format 8 --tree-format 8 --trees "(hello,(1,2,3)kk);" --quoted-node-names

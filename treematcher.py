@@ -424,7 +424,7 @@ def test():
 
 
 def test_cached_attributes():
-    pattern0 = """   @.dist == 1 and "Gallus_gallus_1" in @.leaves ;"""
+    pattern0 ='@.dist == 1 ;'
     pattern1 = """( '"Homo" in @.contains_species ' , ' @.size>2  ')
        '    "Pan_troglodytes_1" in @.leaves';"""
 
