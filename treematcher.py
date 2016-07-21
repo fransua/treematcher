@@ -422,5 +422,25 @@ def test():
     #should return 1 result
     print(len(list(tp1.find_match(t, None))))
 
+
+def test_cached_attributes():
+    pattern0 = """   @.dist == 1 and "Gallus_gallus_1" in @.leaves ;"""
+    pattern1 = """( '"Homo" in @.contains_species ' , ' @.size>2  ')
+       '    "Pan_troglodytes_1" in @.leaves';"""
+
+    pattern0 = TreePattern(pattern0, format=8, quoted_node_names=False)
+    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
+
+    tree = PhyloTree(
+        "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates)primates), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
+        format=1)
+    tree.set_species_naming_function(lambda node: node.name.split("_")[0])
+
+    print(len(list(pattern0.find_match(tree, None, maxhits=None))))
+    print(len(list(pattern0.find_match(tree, None))))
+    print(len(list(pattern1.find_match(tree, None))))
+    print(len(list(pattern1.find_match(tree, None, maxhits=None))))
+
 if __name__ == "__main__":
-    test()
+    #test()
+    test_cached_attributes()

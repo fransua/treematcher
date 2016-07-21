@@ -177,10 +177,9 @@ class Test_TreePattern(unittest.TestCase):
             index += 1
 
     def test_cached_attributes(self):
-        pattern0 = """ ('   @.dist == 1 and "Gallus_gallus_1" in @.leaves ');"""
-        pattern1 = """( '  @.dist >= 0.5 ' , ' @.dist<2  ')
-           '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[0] or
-           "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[1]';"""
+        pattern0 = """   @.dist == 1 and "Gallus_gallus_1" in @.leaves ;"""
+        pattern1 = """( '"Homo" in @.contains_species ' , ' @.size>2  ')
+           '    "Pan_troglodytes_1" in @.leaves';"""
 
         pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
         pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
@@ -191,7 +190,7 @@ class Test_TreePattern(unittest.TestCase):
         self.assertEqual(len(list(pattern0.find_match(tree, None, maxhits=None))), 4)
         self.assertEqual(len(list(pattern0.find_match(tree, None))), 1)
         self.assertEqual(len(list(pattern1.find_match(tree, None))), 1)
-        self.assertEqual(len(list(pattern1.find_match(tree, None, maxhits=None))), 5)
+        self.assertEqual(len(list(pattern1.find_match(tree, None, maxhits=None))), 1)
 
 
 
