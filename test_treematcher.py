@@ -25,7 +25,7 @@ class Test_TreePattern(unittest.TestCase):
             '(len(@.name) > 3) and @.dist >= 0.5';
             """
 
-        pattern0 = TreePattern(pattern0, format=8, quoted_node_names=False)
+        pattern0 = TreePattern(pattern0)
         pattern1 = TreePattern(pattern1, format=8, quoted_node_names=False)
         pattern2 = TreePattern(pattern2, format=8, quoted_node_names=True)
 
