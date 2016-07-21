@@ -1,4 +1,4 @@
-### Introduction
+# TreeMatcher: A new tool for creating regular-expression-like queries on trees
 
 In mathematics, a standard way of representing graphical trees with edge lengths is the Newick format which uses a specific syntax (such as parentheses and commas). The TreeMatcher module defines a tree pattern by extending the Newick format to include rules and filters with a regular-expression-like vocabulary. These patterns are then searched for using a tree traversal algorithm.
 
