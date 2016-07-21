@@ -7,7 +7,7 @@ In mathematics, a standard way of representing graphical trees with edge lengths
 ETE uses its own formalism to represent phylogenetic trees (see Tree class). A pattern can be written by accessing the attributes and functions available to an ETE Tree, using Python code directly, or through custom functions to use as constrinats. A tree pattern structure is created using the Newick format.
 
 
-The simplest way to write a pattern is to begin with a string surrounded by three double quotes at each end. Then use it to create TreePattern instance. In the simplest case, you want to know something about a single node. If an attribute type is not specified, it is assumed that you are searching for a node name by default.
+The simplest way to write a pattern is to begin with a string. Then use it to create TreePattern instance. In the simplest case, you want to know something about a single node. If an attribute type is not specified, it is assumed that you are searching for a node name by default.
 
 Example 1: Find a node named "sample_1".
 ```
@@ -36,11 +36,11 @@ Table 1: Examples of common constraints.
 | @.sci_name == Euarchontoglires 		| scientific name is Euarchontoglires	| See annotate_ncbi_taxa() function for details 						|
 | @.rank == subfamily 					| node is ranked at the subfamily level	| See annotate_ncbi_taxa() function for details							|
 | @.taxid == 207598						|20758 is the taxid	of the node			| See annotate_ncbi_taxa() function for details							|
-| Pan_troglodytes_1 in @.leaves		| Pan_troglodytes_1 is descendant leaf	| Find the leaf name within a list of leaf names						|
+| Pan_troglodytes_1 in @.leaves			| Pan_troglodytes_1 is descendant leaf	| Find the leaf name within a list of leaf names						|
 | len(@.children)						| number of children					| use quotes to differentiate parentheses from Newick Structure			|
 | "Homo sapiens" in @.contains_species	| find species contained in a leaf		| custom attribute														|
 | @.size > 5							| number of descendants/size of tree	| custom attribute 														|
-| H_saps_1 in @.leaves				| find name H_saps_1 in leaves			| custom attribute														|
+| H_saps_1 in @.leaves					| find name H_saps_1 in leaves			| custom attribute														|
 
 
 ### How to use Newick format to access the structure of a tree
@@ -59,7 +59,7 @@ To run, use the find_match function.  By default, find_match will look for one m
 
 Example 4: For the following tree, find the node that matches pattern2.
 
-tree = Tree("(sample_1,(sample_1,sample_2)sample_0)sample_0:1;", format = 8)
+tree = Tree("(sample_1,(sample_1,sample_2)sample_0)sample_0;", format = 8)
 
 ```
 solution = pattern2.find_match(tree, None)
