@@ -31,9 +31,10 @@ Examples
 ### How to use Newick format to access the structure of a tree
 Use Newick format to access the tree structure. Call the TreePattern function to create an instance of a tree pattern.
 
+
 Example 1: Find a tree where sample_1 and sample_2 are siblings.
 ```
-pattern1 = """ sample_1, sample_2 ; """ ```
+pattern1 = """ sample_1, sample_2 ; """
 pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
 ```
 
