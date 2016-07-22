@@ -35,6 +35,8 @@ class TreePattern(Tree):
 
         self.evol_events_flag = 0
         self.evol_events = None
+        self.shortcut_functions = []
+
 
 
         try:
@@ -42,6 +44,7 @@ class TreePattern(Tree):
 
         except KeyError:
             self._extra_functions = None
+
 
         if len(args) > 0:
             pattern_string = args[0].strip()
@@ -51,9 +54,18 @@ class TreePattern(Tree):
             else:
                 cached_searches = ['.leaves', ".contains_species", ".contains", ".size"]
 
+                shortcut_functions=["contains_species", "is_duplication", "is_speciation", "contains"]
+
+
+
                 for search_type in cached_searches:
                     if pattern_string.find(search_type) != -1:
                         self.cache_flag = 1
+                for function in shortcut_functions:
+                    if pattern_string.find(function + '(') != -1:
+                        self.shortcut_functions += function
+
+
                 if pattern_string.find("is_duplication")!= -1 or pattern_string.find("is_speciation") != -1:
                     self.evol_events_flag = 1
 
@@ -87,10 +99,17 @@ class TreePattern(Tree):
                            "smart_lineage": self.smart_lineage,
                            "ncbi": NCBITaxa(),
                            "pattern": self,
-                           "get_cached_attr": self.get_cached_attr
+                           "get_cached_attr": self.get_cached_attr,
+                           "contains_species": contains_species,
+                           "is_duplication": is_duplication,
+                           "is_speciation": is_speciation,
+                           "contains": contains,
+                           "number_of_species": number_of_species,
+                           "number_of_leaves": number_of_leaves
                            })
         if self._extra_functions:
             local_vars.update(self._extra_functions)
+
 
         try:
             st = eval(self.constraint, local_vars) if self.constraint else True
@@ -144,7 +163,6 @@ class TreePattern(Tree):
         """
         if self.evol_events_flag == 1:
             self.evol_events = tree.get_descendant_evol_events()
-            print("self.evol_events are first", self.evol_events)
         #self.temp_leaf_cache = tree.get_cached_content()
 
         self.all_node_cache = tree.get_cached_content(leaves_only=False)
@@ -222,9 +240,14 @@ class TreePattern(Tree):
                 except (KeyError, ValueError):
                     print("Error in syntax dictionary iteration at keyword: " + str(keyword) + "and value: " + python_code)
 
-            #Search for custom functions
+
             if self._extra_functions is not None:
                 for custom_function in self._extra_functions.keys():
+                    node.constraint = re.sub(custom_function + "\(__target",
+                                             custom_function + "(__target, pattern", node.constraint)
+                print node.constraint
+            if self.shortcut_functions!=[]:
+                for custom_function in self.shortcut_functions:
                     node.constraint = re.sub(custom_function + "\(__target",
                                              custom_function + "(__target, pattern", node.constraint)
 
@@ -309,7 +332,6 @@ def contains(__target, __pattern, name_list):
     :param name_list: List of names to be searched for at a node.
     :return: True if all names in name_list are found, otherwise False.
     """
-    __pattern.preprocess(__target)
 
     if isinstance(name_list, six.string_types):
         name_list = [name_list]
@@ -327,14 +349,11 @@ def number_of_species(__target, __pattern, num):
     :param num: number of species searched for at a node.
     :return: True if number of descendant species is equal to num, otherwise False.
     """
-    #__pattern.preprocess(__target)
     cached_species = __pattern.get_cached_attr('species', __target)
     if num == len(cached_species):
         result = True
     else:
         result = False
-
-    print("num species result is", result)
 
     return result
 
@@ -377,7 +396,7 @@ def is_duplication(__target, __pattern):
 
     return result
 
-def is_speciation(__target):
+def is_speciation(__target, __pattern):
     """
         Shortcut function to find whether a node is a duplication. Checks node.evol_type inferred with
         PhyloTree.get_descendant_evol_events().
@@ -396,6 +415,7 @@ def is_speciation(__target):
 
     except:  # no evol_events on __pattern
         result = False
+        print("exception occurs")
 
     return result
 
@@ -406,19 +426,12 @@ def test():
     t.set_species_naming_function(lambda node: node.name.split("_")[0])
 
     pattern = """('')' is_duplication(@) '; """
-    pattern = TreePattern(pattern, format=8, quoted_node_names=True,
-                          functions={'contains_species': contains_species,
-                                     'is_duplication': is_duplication,
-                                    'is speciation': is_speciation
-                                    })
+    pattern = TreePattern(pattern, format=8, quoted_node_names=True)
     #should return 5 results
     print(len(list(pattern.find_match(t, None, maxhits=None))))
 
-    pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))' , 'num_species(@, 2) and num_leaves(@,2)' ); """
-    tp1 = TreePattern(pattern1, format=8, quoted_node_names=True,
-                      functions={'contains': contains,
-                                 "num_species": number_of_species,
-                                 "num_leaves": number_of_leaves})
+    pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))'); """
+    tp1 = TreePattern(pattern1, format=8, quoted_node_names=True)
     #should return 1 result
     print(len(list(tp1.find_match(t, None))))
 
