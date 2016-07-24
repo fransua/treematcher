@@ -85,16 +85,16 @@ class TreePattern(Tree):
                     n.constraint = None
 
 
-    def constrain_match(self, __target, local_vars=None):
+    def constrain_match(self, target_node, local_vars=None):
         """
-        Evaluate constraint on a single node. This functions checks whether a single node matches a single constraint.
-        :param __target: represents a node you are looking to target. Replaces @ in a query.
+        Evaluate constraint on a single node.
+        :param target_node: Node evaluated
         :param local_vars: Dictionary of treematcher class variables and functions for constraint evaluation
-        :return: returns a boolean value of True if a match is found, otherwise False.
+        :return: Returns True if a match is found, otherwise False.
         """
         if not local_vars:
             local_vars = {}
-        local_vars.update({"__target": __target, "self": __target,
+        local_vars.update({"__target": target_node, "self": target_node,
                            "temp_leaf_cache": self.temp_leaf_cache,
                            "smart_lineage": self.smart_lineage,
                            "ncbi": NCBITaxa(),
@@ -119,7 +119,7 @@ class TreePattern(Tree):
             raise ValueError("The following constraint expression did not return boolean result: %s BUT %s" %
                              (self.constraint, st))
         except (AttributeError, IndexError) as err:
-            print('Warning: Constraint evaluation failed at ' + str(__target) + ' with error "' + str(err) + '"')
+            print('Warning: Constraint evaluation failed at ' + str(target_node) + ' with error "' + str(err) + '"')
             st = False
 
         return st
@@ -127,11 +127,10 @@ class TreePattern(Tree):
 
     def is_match(self, node, local_vars=None):
         """
-        Check all constraints on a tree. Permutes the tree and checks that all constraints return True.
-        Funtion checks whether a single node and its children match a given pattern.
-        :param node: A tree (root node) to be searched for a given pattern.
+        Check all constraints on the subtree under node.
+        :param node: A tree (node) to be searched for a given pattern.
         :param local_vars:  Dictionary of TreePattern class variables and functions for constraint evaluation.
-        :return: True is a match has been found, otherwise False.
+        :return: True if a match has been found, otherwise False.
         """
         status = self.constrain_match(node, local_vars)
 
@@ -157,9 +156,8 @@ class TreePattern(Tree):
 
     def preprocess(self, tree):
         """
-        Creates cache for attributes that require multiple tree traversal.
-         Cache is available on all nodes of the tree.
-        :param tree: Pattern being searched for.
+        Creates cache for attributes that require multiple tree traversal and makes the cache available on all nodes.
+        :param tree: Pattern to search for.
         """
         if self.evol_events_flag == 1:
             self.evol_events = tree.get_descendant_evol_events()
@@ -211,7 +209,6 @@ class TreePattern(Tree):
             return True
         else:
             return False
-
 
     def _parse_constraint(self, node, is_exact=False):
         """
@@ -274,10 +271,9 @@ class TreePattern(Tree):
     def smart_lineage(self, constraint):
         """
         Get names instead of tax ids if a string is given before the "in @.linage" in a query.
-        Otherwise, returns Taxonomy ids.
-        Function also works for constraint that contains something besides the given target node
-        (e.g., @.chilren[0].lineage)
-        :param constraint: The entire pattern being searched for which includes @.lineage.
+        Otherwise, returns Taxonomy ids. Function also works for constraint that contains something besides the given target node
+        (e.g., @.children[0].lineage).
+        :param constraint: Internal use.
         :return:  Returns list of lineage tax ids if taxid is searched, otherwise returns names in lineage.
         """
         parsedPattern = ast.parse(constraint, mode='eval')
@@ -307,28 +303,28 @@ class TreePattern(Tree):
         return constraint
 
 
-def contains_species(__target, __pattern, species_list):
+def contains_species(target_node, pattern, species_list):
     """
-    Shortcut function to find the species(s) within a node or any of it's descendants.
-    :param __target: Internal use
-    :param __pattern: Internal use
+    Shortcut function to find the species at a node and any of it's descendants.
+    :param target_node: Node to be evaluated, given as @.
+    :param pattern: Internal use
     :param species_list: list of species being searched for
     :return: True if all species in list are found, otherwise False.
     """
-    __pattern.preprocess(__target)
+    pattern.preprocess(target_node)
     if isinstance(species_list, six.string_types):
         species_list = [species_list]
 
-    cached_species = __pattern.get_cached_attr('species', __target)
+    cached_species = pattern.get_cached_attr('species', target_node)
     result = all(sp in cached_species for sp in species_list)
     return result
 
 
-def contains(__target, __pattern, name_list):
+def contains(target_node, pattern, name_list):
     """
-    Shortcut function to find the name(s) within a node or any of it's descendants.
-    :param __target: Internal use
-    :param __pattern: Internal use
+    Shortcut function to find the name(s) within a node and any of it's descendants.
+    :param target_node: Node to be evaluated, given as @.
+    :param pattern: Internal use
     :param name_list: List of names to be searched for at a node.
     :return: True if all names in name_list are found, otherwise False.
     """
@@ -336,20 +332,20 @@ def contains(__target, __pattern, name_list):
     if isinstance(name_list, six.string_types):
         name_list = [name_list]
 
-    cached_name = __pattern.get_cached_attr('name', __target)
+    cached_name = pattern.get_cached_attr('name', target_node)
     result = all(name in cached_name for name in name_list)
     return result
 
 
-def number_of_species(__target, __pattern, num):
+def number_of_species(target_node, pattern, num):
     """
-    Shortcut function to find the number of species within a node or any of it's descendants.
-    :param __target: Internal use.
-    :param __pattern: Internal use.
+    Shortcut function to find the number of species within a node and any of it's descendants.
+    :param target_node: Node to be evaluated, given as @.
+    :param pattern: Internal use.
     :param num: number of species searched for at a node.
     :return: True if number of descendant species is equal to num, otherwise False.
     """
-    cached_species = __pattern.get_cached_attr('species', __target)
+    cached_species = pattern.get_cached_attr('species', target_node)
     if num == len(cached_species):
         result = True
     else:
@@ -358,15 +354,15 @@ def number_of_species(__target, __pattern, num):
     return result
 
 
-def number_of_leaves(__target,__pattern, num):
+def number_of_leaves(target_node, pattern, num):
     """
-    Shortcut function to find the number of leaves within a node or any of it's descendants.
-    :param __target: Internal use.
-    :param __pattern: Internal use.
+    Shortcut function to find the number of leaves within a node and any of it's descendants.
+    :param target_node: Node to be evaluated, given as @.
+    :param pattern: Internal use.
     :param num: Number of descendant leaves to be searched for.
     :return: True if all number of leaves matches num, otherwise False.
     """
-    cached_name = __pattern.get_cached_attr('name', __target)
+    cached_name = pattern.get_cached_attr('name', target_node)
     if num == len(cached_name):
         result = True
     else:
@@ -374,18 +370,17 @@ def number_of_leaves(__target,__pattern, num):
 
     return result
 
-def is_duplication(__target, __pattern):
+def is_duplication(target_node, pattern):
     """
-        Shortcut function to find whether a node is a duplication. Checks node.evol_type inferred with
-        PhyloTree.get_descendant_evol_events().
-        :param __target: Internal use.
-        :param __pattern: Internal use.
+        Shortcut function to find whether a node is a duplication.
+        :param target_node: Node to be evaluated, given as @.
+        :param pattern: Internal use.
         :return: True if node is a duplication, otherwise False.
     """
     result = False
     try:
-        for event in __pattern.evol_events:
-            if __target == event.node and event.etype == 'D':
+        for event in pattern.evol_events:
+            if target_node == event.node and event.etype == 'D':
                 result = True
                 break
             else:
@@ -396,24 +391,24 @@ def is_duplication(__target, __pattern):
 
     return result
 
-def is_speciation(__target, __pattern):
+def is_speciation(target_node, pattern):
     """
         Shortcut function to find whether a node is a duplication. Checks node.evol_type inferred with
         PhyloTree.get_descendant_evol_events().
-        :param __target: Internal use.
-        :param __pattern: Internal use.
+        :param target_node: Node to be evaluated, use @
+        :param pattern: Internal use.
         :return: True if node is a duplication, otherwise False.
     """
     result = False
     try:
-        for event in __pattern.evol_events:
-            if __target == event.node and event.etype == 'S':
+        for event in pattern.evol_events:
+            if target_node == event.node and event.etype == 'S':
                 result = True
                 break
             else:
                 continue
 
-    except:  # no evol_events on __pattern
+    except:  # no evol_events on pattern
         result = False
         print("exception occurs")
 
