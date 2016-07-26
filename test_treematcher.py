@@ -44,7 +44,7 @@ class Test_TreePattern(unittest.TestCase):
         tests syntax we've created like node.leaves, node.children are working
         """
         pattern1 = """( '  @.dist >= 0.5 ' , ' @.dist<2  ')
-            '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[0] or "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[1] ';"""
+            '    "Pan_troglodytes_1" in @.leaves';"""
 
         pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
 
@@ -178,21 +178,34 @@ class Test_TreePattern(unittest.TestCase):
 
     def test_cached_attributes(self):
         pattern0 = """   @.dist == 1 and "Gallus_gallus_1" in @.leaves ;"""
-        pattern1 = """( '"Homo" in @.contains_species ' , ' @.size>2  ')
-           '    "Pan_troglodytes_1" in @.leaves';"""
+        pattern1 = """( "Hom" in @.contains_species , @.size>2  )    "Pan_troglodytes_1" in @.leaves;"""
+
 
         pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
-        pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
+        pattern1 = TreePattern(pattern1, format=8, quoted_node_names=False)
 
         tree = PhyloTree(
             "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates)primates), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
             format=1)
+
         self.assertEqual(len(list(pattern0.find_match(tree, None, maxhits=None))), 4)
         self.assertEqual(len(list(pattern0.find_match(tree, None))), 1)
-        self.assertEqual(len(list(pattern1.find_match(tree, None))), 1)
         self.assertEqual(len(list(pattern1.find_match(tree, None, maxhits=None))), 1)
 
+    def test_shortcut_functions(self):
+        t = PhyloTree(
+            "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
+        t.set_species_naming_function(lambda node: node.name.split("_")[0])
+        t.get_descendant_evol_events()
 
+        pattern0 = """('contains_speciation(@)')' contains_duplication(@) '; """
+        pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))'); """
+
+        pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
+        pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
+
+        self.assertEqual(len(list(pattern0.find_match(t, None, maxhits=None))), 5)
+        self.assertEqual(len(list(pattern1.find_match(t, None, maxhits=None))), 4)
 
 def run():
     unittest.main()
