@@ -80,7 +80,6 @@ class TreePattern(Tree):
                 n._extra_functions = self._extra_functions
 
                 if n.name != "NoName":
-                    print("parsing constraint, self.cache_flag is: " + str(self.cache_flag))
                     self._parse_constraint(n, is_exact)
                 else:
                     n.constraint = None
@@ -233,10 +232,10 @@ class TreePattern(Tree):
 
             if self.cache_flag == True:
                 syntax_tuples = self._syntax_tuples_with_cache
-                print("cache was flagged")
+                #print("cache was flagged")
             else:
                 syntax_tuples = self._syntax_tuples
-                print("cache was NOT flagged")
+                #print("cache was NOT flagged")
 
             for keyword, python_code in syntax_tuples:
                 try:

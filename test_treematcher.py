@@ -207,7 +207,6 @@ class Test_TreePattern(unittest.TestCase):
         self.assertEqual(len(list(pattern0.find_match(t, None, maxhits=None))), 5)
         self.assertEqual(len(list(pattern1.find_match(t, None, maxhits=None))), 4)
 
-
 def run():
     unittest.main()
 
