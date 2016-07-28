@@ -15,12 +15,17 @@ class TreePattern(Tree):
     """
     _syntax_tuples = [
         ("@", "__target"),
+        ("__target.size", "len(__target.get_leaves())"),
+        ("__target.leaves", "[node.name for node in __target.get_leaves()]"),
+        ("__target.contains_species", "[n.species for n in __target.traverse()]"),
+    ]
+
+    _syntax_tuples_with_cache = [
+        ("@", "__target"),
         ("__target.size", "len(temp_leaf_cache[__target])"),
         ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
         ("__target.leaves", "[n.name for n in temp_leaf_cache[__target]]"),
-        #("__target.leaves", "get_cached_attr('name', __target)"), # no longer returns leaves, need similar function
-        #("__target.size", "len(get_cached_attr('name', __target))"),
-        #("__target.contains_species", "get_cached_attr('species', __target)"),
+
     ]
 
     def __init__(self, *args, **kargs):
@@ -28,11 +33,7 @@ class TreePattern(Tree):
 
         is_exact = False
 
-        self.cache_flag = 0
         self.all_node_cache = None
-
-        self.evol_events_flag = 0
-        self.evol_events = None
         self.shortcut_functions = []
 
 
@@ -43,6 +44,12 @@ class TreePattern(Tree):
         except KeyError:
             self._extra_functions = None
 
+        try:
+            self.cache_flag = kargs.pop('cache')
+
+        except KeyError:
+            self.cache_flag = False
+
 
         if len(args) > 0:
             pattern_string = args[0].strip()
@@ -50,22 +57,17 @@ class TreePattern(Tree):
             if pattern_string.find('@') == -1:
                 is_exact = True
             else:
-                cached_searches = ['.leaves', ".contains_species", ".contains", ".size"]
+                #cached_searches = ['.leaves', ".contains_species", ".contains", ".size"]
 
                 shortcut_functions=["contains_species", "contains_duplication", "contains_speciation", "contains"]
 
-
-
-                for search_type in cached_searches:
-                    if pattern_string.find(search_type) != -1:
-                        self.cache_flag = 1
                 for function in shortcut_functions:
                     if pattern_string.find(function + '(') != -1:
                         self.shortcut_functions += [function]
 
 
-                if pattern_string.find("contains_duplication")!= -1 or pattern_string.find("contains_speciation") != -1:
-                    self.evol_events_flag = 1
+                #if pattern_string.find("contains_duplication")!= -1 or pattern_string.find("contains_speciation") != -1:
+                #    self.evol_events_flag = 1
 
 
         #Tree.__init__(self, *args, **kargs)
@@ -78,6 +80,7 @@ class TreePattern(Tree):
                 n._extra_functions = self._extra_functions
 
                 if n.name != "NoName":
+                    print("parsing constraint, self.cache_flag is: " + str(self.cache_flag))
                     self._parse_constraint(n, is_exact)
                 else:
                     n.constraint = None
@@ -175,8 +178,9 @@ class TreePattern(Tree):
         :param maxhits: Number of matches to be searched for.
         :param None maxhits: Pattern search will continue until all matches are found.
         """
-        if self.cache_flag == 1 or self.evol_events_flag == 1:
+        if self.cache_flag == True:
             self.preprocess(tree)
+
 
         num_hits = 0
         num = 0
@@ -227,7 +231,14 @@ class TreePattern(Tree):
 
             node.constraint = re.sub("\s+", " ", node.constraint)
 
-            for keyword, python_code in self._syntax_tuples:
+            if self.cache_flag == True:
+                syntax_tuples = self._syntax_tuples_with_cache
+                print("cache was flagged")
+            else:
+                syntax_tuples = self._syntax_tuples
+                print("cache was NOT flagged")
+
+            for keyword, python_code in syntax_tuples:
                 try:
                     node.constraint = node.constraint.replace(keyword, python_code)
                 except (KeyError, ValueError):
@@ -393,10 +404,11 @@ def test():
     t.get_descendant_evol_events()
 
     pattern0 = """ "Human_2" in @.leaves; """
-    pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))'); """
+    #pattern1 = """( 'contains_species(@, ("Chimp"))'); """ #returns 6
+    pattern1 = """( ' "Chimp" in @.contains_species '); """
 
-    pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
-    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
+    pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True, cache=True)
+    pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True, cache=True)
 
 
     #should return 5 results
@@ -408,4 +420,4 @@ def test():
 
 
 if __name__ == "__main__":
-    #test()
+    test()
