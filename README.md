@@ -17,7 +17,7 @@ pattern1 = TreePattern(pattern1)  # create a TreePattern Instance
 ```
 Example 2: Find a tree where sample_1 and sample_2 are siblings.
 ```
-pattern2 = ' sample_1, sample_2 ; '  #  comma is used separate sibling nodes
+pattern2 = ' (sample_1, sample_2) ; '  #  comma is used separate sibling nodes. Solution is the parent node.
 pattern2 = TreePattern(pattern2)  # create the TreePattern Instance
 ```
 
@@ -47,29 +47,27 @@ Table 1: Examples of common constraints.
 Create a tree structure using Newick format. Replace the name of each node you want to search for with a constraint.
 
 
-Example 3: Find a tree where sample_1 and sample_2 are children of the parent sample_0.  Note that the format type is set to 1 as the default which does not allow internal node names. Access other Newick format types by setting the format argument.
+Example 3: Find a tree where sample_1 and sample_2 are children of the parent ancestor_a.  Note that the format type is set to 1 as the default which does not allow internal node names. Access other Newick format types by setting the format argument.
 ```
-pattern3 = """ (sample_1, sample_2) sample_0 ; """
+pattern3 = """ (sample_1, sample_2) ancestor_a ; """
 pattern3 = TreePattern(pattern3, format=8)
 ```
 
 ### To Run
-To run, use the find_match function.  By default, find_match will look for one match. If you want to find every match on a tree, set the maximum number of hits to None.
+To run, use the find_match function.  By default, find_match will look for one match. If you want to find every match on a tree, set the maximum number of hits to None. If you only want to know the number of matches, use len().
 
 
-Example 4: For the following tree, find the node that matches pattern2.
+Example 4: For the following tree, find the parent node of the siblings sample_1 and sample_2.
 
-tree = Tree("(sample_1,(sample_1,sample_2)sample_0)sample_0:1;", format = 8)
+tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format = 8)
 
 ```
-solution = pattern2.find_match(tree, None)
-print(list(solution))
+solution = list(pattern2.find_match(tree, None))
 ```
 
-Example 5: Find the total number of pattern3 matches in the same tree as above.
+Example 5: Find the total number of patterns that match
 ```
-solution = len(list(pattern3.find_match(tree, None, maxhits=None)))
-print(solution)
+solution = len(list(pattern2.find_match(tree, None, maxhits=None)))
 ```
 
 
