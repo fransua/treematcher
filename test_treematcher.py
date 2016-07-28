@@ -85,7 +85,6 @@ class Test_TreePattern(unittest.TestCase):
         # test ncbi taxonomy
 
         ncbi = NCBITaxa()
-        ncbi.update_taxonomy_database()
         taxonomy_tree = PhyloTree("((9598, 9606), 10090);", sp_naming_function=lambda name: name)
         taxonomy_tree.annotate_ncbi_taxa()
         root = taxonomy_tree.get_tree_root()
