@@ -7,7 +7,7 @@ In mathematics, a standard way of representing graphical trees with edge lengths
 ETE uses its own formalism to represent phylogenetic trees (see Tree class). A pattern can be written by accessing the attributes and functions available to an ETE Tree, using Python code directly, or through custom functions to use as constrinats. A tree pattern structure is created using the Newick format.
 
 
-The simplest way to write a pattern is to begin with a string surrounded by three double quotes at each end. Then use it to create TreePattern instance. In the simplest case, you want to know something about a single node. If an attribute type is not specified, it is assumed that you are searching for a node name by default.
+The simplest way to write a pattern is to begin with a string surrounded by three double quotes at each end. Use the string to create TreePattern instance. In the simplest case, you want to know something about a single node. If an attribute type is not specified, it is assumed that you are searching for a node name by default.
 
 Example 1: Find a node named "sample_1".
 ```
@@ -21,29 +21,29 @@ pattern2 = ' sample_1, sample_2 ; '  #  comma is used separate sibling nodes
 pattern2 = TreePattern(pattern2)  # create the TreePattern Instance
 ```
 
-For a short list of commonly used constraints, use the following table.
+A short list of commonly used constraints is given in the following table.
 
 Table 1: Examples of common constraints.
 
-|  syntax       						| meaning       						|  Comments																|
-| ----------------------------------	|:----------------------------------:	|:---------------------------------------------------------------------:|
-| @	            						| node, default for nodes left blank	| Use @.attribute to access an attribute, function(@) to access function|
-| sample1								| equivalent to @.name == "sample1" 	| Looking for multiple names, use list: @.name in ("sample1","sample2") |
-| @.dist >= 0.5     					| branch length no less than 0.5		| 	Use any of the following: <, <=, ==, >=								|
-| @.support > 0.9	            		| Has a support value greater than 0.90	| 																		|
-| @.species=="Homo sapiens"	    		| Homo sapiens is species of node		| See set_species_naming_function()	for details							|
-| 9606 in @.lineage	            		| Homo sapiens in @.lineage				| Find NCBI taxonomy ID or the full scientific name	in a node's lineage	|
-| @.sci_name == Euarchontoglires 		| scientific name is Euarchontoglires	| See annotate_ncbi_taxa() function for details 						|
-| @.rank == subfamily 					| node is ranked at the subfamily level	| See annotate_ncbi_taxa() function for details							|
-| @.taxid == 207598						|20758 is the taxid	of the node			| See annotate_ncbi_taxa() function for details							|
-| Pan_troglodytes_1 in @.leaves		| Pan_troglodytes_1 is descendant leaf	| Find the leaf name within a list of leaf names						|
-| len(@.children)						| number of children					| use quotes to differentiate parentheses from Newick Structure			|
-| "Homo sapiens" in @.contains_species	| find species contained in a leaf		| custom attribute														|
-| @.size > 5							| number of descendants/size of tree	| custom attribute 														|
-| H_saps_1 in @.leaves				| find name H_saps_1 in leaves			| custom attribute														|
+|  type                     |custom|  syntax example       						    | example meaning       				        |  Comments																        |
+| --------------------------|:-:|:-------------------------------------------------:|:---------------------------------------------:|:-----------------------------------------------------------------------------:|
+| node                      |   | @	            						            |a  node, default for nodes left blank	        | Use @.attribute to access attribute, function(@) to access function           |
+| node name                 |   | node_name, "node_name", or @.name=="node_name"	| equivalent to @.name == "sample1" 	        | Looking for multiple names, use list: @.name in ("sample1","sample2")         |
+| distance                  |   | @.dist >= 0.5     					            | branch length no less than 0.5		        | Use any of the following: <, <=, ==, >=, !=								    |
+| support                   |   | @.support > 0.9	            		            | Has a support value greater than 0.90	        | 																		        |
+| species                   |   | @.species=="Homo sapiens"	    		            | Homo sapiens is species of node		        | See set_species_naming_function()	for details							        |
+| scientific name           |   | @.sci_name == Euarchontoglires 		            | scientific name is Euarchontoglires	        | See annotate_ncbi_taxa() function for details 						        |
+| rank                      |   | @.rank == subfamily 					            | node is ranked at the subfamily level	        | See annotate_ncbi_taxa() function for details							        |
+| taxonomic id              |   | @.taxid == 207598						            | 20758 is the taxid of the node			    | See annotate_ncbi_taxa() function for details							        |
+| number of children        |   | len(@.children)						            | binary tree internal node has 2, leaf hss 0   | use quoted node names to differentiate parentheses from Newick Structure	    |
+| size of subtree           |   | @.size > 5							            | number of descendants/size of tree	        | custom attribute 														        |
+| number of leaves          |   | len(@)                                            |                                               |                                                                               |
+| lineage                   | * | 9606 in @.lineage or "Homo sapiens" in @.lineage  | Homo sapiens in @.lineage				        | Find NCBI taxonomy ID or the full scientific name	in a node's lineage	        |
+| species in descendant node| * | "Homo sapiens" in @.contains_species	            | find species contained in a leaf		        | custom attribute														        |
+| leaf name                 | * | Pan_troglodytes_1 in @.leaves		                | Pan_troglodytes_1 is descendant leaf name	    | Find the leaf name within a list of leaf names, custom treematcher attribute  |
+*custom functions and attributes do not exist outside of the treematcher class or have different functionality than found elsewhere in ETE.
 
-
-### How to use Newick format to access the structure of a tree
+### Newick format to access the structure of a tree
 Create a tree structure using Newick format. Replace the name of each node you want to search for with a constraint.
 
 
@@ -98,3 +98,30 @@ print(list(solution))
 
 
 ete3 treematcher --pattern "sample_1, sample_2;" --pattern-format 8 --tree-format 8 --trees "sample_3,(sample_1,sample_2)sample_0;" --quoted-node-names
+
+
+Now, let's combine the examples together into a short tutorial.
+
+```
+tree = Tree("(sample_1,(sample_1,sample_2)sample_0)sample_0:1;", format = 8)
+
+
+# Find a node named "sample_1".
+pattern1 =' sample_1 ;'	 # begin with a string
+pattern1 = TreePattern(pattern1)  # create a TreePattern Instance
+
+# Find a tree where sample_1 and sample_2 are siblings.
+pattern2 = ' sample_1, sample_2 ; '  #  comma is used separate sibling nodes
+pattern2 = TreePattern(pattern2)  # create the TreePattern Instance
+solution = pattern2.find_match(tree, None)
+print(list(solution))
+
+# Find a tree where sample_1 and sample_2 are children of the parent sample_0.  Note that the format type is set to 1 as the default which does not allow internal node names. Access other Newick format types by setting the format argument.
+pattern3 = """ (sample_1, sample_2) sample_0 ; """
+pattern3 = TreePattern(pattern3, format=8)
+# Find the total number of pattern3 matches
+solution = len(list(pattern3.find_match(tree, None, maxhits=None)))
+print(solution)
+
+
+```

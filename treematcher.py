@@ -18,7 +18,7 @@ class TreePattern(Tree):
         ("__target.size", "len(temp_leaf_cache[__target])"),
         ("__target.contains_species", "[n.species for n in temp_leaf_cache[__target]]"),
         ("__target.leaves", "[n.name for n in temp_leaf_cache[__target]]"),
-        #("__target.leaves", "get_cached_attr('name', __target)"), # no longer returns leaves, need similar function?
+        #("__target.leaves", "get_cached_attr('name', __target)"), # no longer returns leaves, need similar function
         #("__target.size", "len(get_cached_attr('name', __target))"),
         #("__target.contains_species", "get_cached_attr('species', __target)"),
     ]
@@ -238,7 +238,6 @@ class TreePattern(Tree):
                 for custom_function in self._extra_functions.keys():
                     node.constraint = re.sub(custom_function + "\(__target",
                                              custom_function + "(__target, pattern", node.constraint)
-                print node.constraint
             if len(self.shortcut_functions)>0:
                 for custom_function in self.shortcut_functions:
                     node.constraint = re.sub(custom_function + "\(__target",
@@ -392,7 +391,6 @@ def test():
         "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
     t.set_species_naming_function(lambda node: node.name.split("_")[0])
     t.get_descendant_evol_events()
-    print t
 
     pattern0 = """ "Human_2" in @.leaves; """
     pattern1 = """( 'contains(@, ("Chimp_2", "Chimp_3"))'); """
@@ -403,12 +401,92 @@ def test():
 
     #should return 5 results
     print(len(list(pattern0.find_match(t, None, maxhits=None))))
-    print list(pattern0.find_match(t, None, maxhits=None))
-    for node in list(pattern0.find_match(t, None, maxhits=None)):
-        print node
+
     #should return 4 results
-    #print(len(list(pattern1.find_match(t, None, maxhits=None))))
+    print(len(list(pattern1.find_match(t, None, maxhits=None))))
+
+def test_tutorial():
+
+    tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format=8)
+    print tree
+    border= "\n"+ "#" * 110 + "\n"
+
+    #######################################################
+    print(border)
+    print("Find a node named sample_1.")
+    print(border)
+    #######################################################
+
+    pattern1_v1 = """ @.name=="sample_1" ; """
+    pattern1_v1 = TreePattern(pattern1_v1)  # create a TreePattern Instance
+    solution = pattern1_v1.find_match(tree, None)
+    print(pattern1_v1, list(solution))
+
+    pattern1_v2 = """ sample_1 ; """
+    pattern1_v2 = TreePattern(pattern1_v2)  # create a TreePattern Instance
+    #print("Pattern 1 version 2 is", pattern1_v2)
+    solution = pattern1_v2.find_match(tree, None)
+    print(pattern1_v2, list(solution))
+
+    pattern1_v3 = """ "sample_1" ; """  # Note that single quotes on the inside will not work here
+    pattern1_v3 = TreePattern(pattern1_v3, quoted_node_names=True)  # create a TreePattern Instance
+    #print("Pattern 1 version 3 is", pattern1_v3)
+    solution = pattern1_v3.find_match(tree, None)
+    print(pattern1_v3, list(solution))
+
+    pattern1_v4 = ' "sample_1" ; '
+    pattern1_v4 = TreePattern(pattern1_v4, quoted_node_names=True)  # create a TreePattern Instance
+    #print("Pattern 1 version 4 is", pattern1_v4)
+    solution = pattern1_v4.find_match(tree, None)
+    print(pattern1_v4, list(solution))
+
+    # List all pattern 1 matches
+    solution = list(pattern1_v2.find_match(tree, None, maxhits=None))
+    print("All solutions for pattern 1 are:")
+    print(solution)
+
+    # Find the total number of pattern2 matches
+    solution = len(list(pattern1_v2.find_match(tree, None, maxhits=None)))
+    print("The number of solutions for pattern 1 are:")
+    print(solution)
+
+    #######################################################
+    print(border)
+    print("Find a tree where sample_1 and sample_2 are siblings.")
+    print(border)
+    #######################################################
+
+    pattern2_v1 = """ @.children[0].name=="sample_1" and @.children[1].name=="sample_2" ; """  # comma is used separate sibling nodes
+    pattern2_v1 = TreePattern(pattern2_v1, quoted_node_names=False)  # create the TreePattern Instance
+    solution = pattern2_v1.find_match(tree, None)
+    print("solution 2 version 1 is", list(solution))
+
+    pattern2_v2 = """ (sample_1, sample_2) ; """  # comma is used separate sibling nodes
+    pattern2_v2 = TreePattern(pattern2_v2, quoted_node_names=False)  # create the TreePattern Instance
+    solution = pattern2_v2.find_match(tree, None)
+    print("solution 2 version 2 is", list(solution))
+
+    pattern2_v3 = """ ("sample_1", "sample_2") ; """  # comma is used separate sibling nodes
+    pattern2_v3 = TreePattern(pattern2_v3, quoted_node_names=True)  # create the TreePattern Instance
+    solution = pattern2_v3.find_match(tree, None)
+    print("solution 2 version 3 is", list(solution))
+
+    pattern2_v4 = """ ('sample_1', 'sample_2') ; """  # comma is used separate sibling nodes
+    pattern2_v4 = TreePattern(pattern2_v4, quoted_node_names=True)  # create the TreePattern Instance
+    solution = pattern2_v4.find_match(tree, None)
+    print("solution 2 version 4 is", list(solution))
+
+    # List all pattern 2 matches
+    solution = list(pattern2_v2.find_match(tree, None, maxhits=None))
+    print("All solutions for pattern 2 are:")
+    print(solution)
+
+    # Find the total number of pattern2 matches
+    solution = len(list(pattern2_v2.find_match(tree, None, maxhits=None)))
+    print("The number of solutions for pattern 2 are:")
+    print(solution)
 
 
 if __name__ == "__main__":
-    test()
+    #test()
+    test_tutorial()
