@@ -102,26 +102,115 @@ ete3 treematcher --pattern "sample_1, sample_2;" --pattern-format 8 --tree-forma
 
 Now, let's combine the examples together into a short tutorial.
 
+Tutorial 1: Introduction to patterns using treematcher.
+
 ```
-tree = Tree("(sample_1,(sample_1,sample_2)sample_0)sample_0:1;", format = 8)
+
+    tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format=8)
+    print tree
+    border= "\n"+ "#" * 110 + "\n"
+
+    #######################################################
+    print(border)
+    print("Find a node named sample_1.")
+    print(border)
+    #######################################################
+
+    pattern1_v1 = """ @.name=="sample_1" ; """
+    pattern1_v1 = TreePattern(pattern1_v1)  # create a TreePattern Instance
+    solution = pattern1_v1.find_match(tree, None)
+    print(pattern1_v1, list(solution))
+
+    pattern1_v2 = """ sample_1 ; """
+    pattern1_v2 = TreePattern(pattern1_v2)  # create a TreePattern Instance
+    #print("Pattern 1 version 2 is", pattern1_v2)
+    solution = pattern1_v2.find_match(tree, None)
+    print(pattern1_v2, list(solution))
+
+    pattern1_v3 = """ "sample_1" ; """  # Note that single quotes on the inside will not work here
+    pattern1_v3 = TreePattern(pattern1_v3, quoted_node_names=True)  # create a TreePattern Instance
+    #print("Pattern 1 version 3 is", pattern1_v3)
+    solution = pattern1_v3.find_match(tree, None)
+    print(pattern1_v3, list(solution))
+
+    pattern1_v4 = ' "sample_1" ; '
+    pattern1_v4 = TreePattern(pattern1_v4, quoted_node_names=True)  # create a TreePattern Instance
+    #print("Pattern 1 version 4 is", pattern1_v4)
+    solution = pattern1_v4.find_match(tree, None)
+    print(pattern1_v4, list(solution))
+
+    # List all pattern 1 matches
+    solution = list(pattern1_v2.find_match(tree, None, maxhits=None))
+    print("All solutions for pattern 1 are:")
+    print(solution)
+
+    # Find the total number of pattern2 matches
+    solution = len(list(pattern1_v2.find_match(tree, None, maxhits=None)))
+    print("The number of solutions for pattern 1 are:")
+    print(solution)
+
+    #######################################################
+    print(border)
+    print("Find a tree where sample_1 and sample_2 are siblings.")
+    print(border)
+    #######################################################
+
+    pattern2_v1 = """ @.children[0].name=="sample_1" and @.children[1].name=="sample_2" ; """  # comma is used separate sibling nodes
+    pattern2_v1 = TreePattern(pattern2_v1, quoted_node_names=False)  # create the TreePattern Instance
+    solution = pattern2_v1.find_match(tree, None)
+    print("solution 2 version 1 is", list(solution))
+
+    pattern2_v2 = """ (sample_1, sample_2) ; """  # comma is used separate sibling nodes
+    pattern2_v2 = TreePattern(pattern2_v2, quoted_node_names=False)  # create the TreePattern Instance
+    solution = pattern2_v2.find_match(tree, None)
+    print("solution 2 version 2 is", list(solution))
+
+    pattern2_v3 = """ ("sample_1", "sample_2") ; """  # comma is used separate sibling nodes
+    pattern2_v3 = TreePattern(pattern2_v3, quoted_node_names=True)  # create the TreePattern Instance
+    solution = pattern2_v3.find_match(tree, None)
+    print("solution 2 version 3 is", list(solution))
+
+    pattern2_v4 = """ ('sample_1', 'sample_2') ; """  # comma is used separate sibling nodes
+    pattern2_v4 = TreePattern(pattern2_v4, quoted_node_names=True)  # create the TreePattern Instance
+    solution = pattern2_v4.find_match(tree, None)
+    print("solution 2 version 4 is", list(solution))
+
+    # List all pattern 2 matches
+    solution = list(pattern2_v2.find_match(tree, None, maxhits=None))
+    print("All solutions for pattern 2 are:")
+    print(solution)
+
+    # Find the total number of pattern2 matches
+    solution = len(list(pattern2_v2.find_match(tree, None, maxhits=None)))
+    print("The number of solutions for pattern 2 are:")
+    print(solution)
 
 
-# Find a node named "sample_1".
-pattern1 =' sample_1 ;'	 # begin with a string
-pattern1 = TreePattern(pattern1)  # create a TreePattern Instance
 
-# Find a tree where sample_1 and sample_2 are siblings.
-pattern2 = ' sample_1, sample_2 ; '  #  comma is used separate sibling nodes
-pattern2 = TreePattern(pattern2)  # create the TreePattern Instance
-solution = pattern2.find_match(tree, None)
-print(list(solution))
+```
+The results of the Tutorial 1 are as follows:
 
-# Find a tree where sample_1 and sample_2 are children of the parent sample_0.  Note that the format type is set to 1 as the default which does not allow internal node names. Access other Newick format types by setting the format argument.
-pattern3 = """ (sample_1, sample_2) sample_0 ; """
-pattern3 = TreePattern(pattern3, format=8)
-# Find the total number of pattern3 matches
-solution = len(list(pattern3.find_match(tree, None, maxhits=None)))
-print(solution)
+```
+      /-sample_1
+   /-|
+  |   \-sample_2
+--|
+  |   /-sample_1
+   \-|
+      \-sample_2
 
+##############################################################################################################
 
+Find a node named sample_1.
+
+##############################################################################################################
+
+(Tree node '@.name=="sample_1"' (0x10b4e081), [Tree node 'sample_1' (0x10b4e0a9)])
+(Tree node 'sample_1' (0x10b4e0b5), [Tree node 'sample_1' (0x10b4e0a9)])
+(Tree node '"sample_1"' (0x10b4e0ad), [])
+(Tree node '"sample_1"' (0x10b4e0bd), [])
+All solutions for pattern 1 are:
+[Tree node 'sample_1' (0x10b4e0a9), Tree node 'sample_1' (0x10b4e0d5)]
+The number of solutions for pattern 1 are:
+2
 ```
