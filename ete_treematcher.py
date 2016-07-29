@@ -1,5 +1,10 @@
-from .common import log
 import sys
+from logging import log
+from argparse import ArgumentParser
+
+
+from ete3 import Tree, PhyloTree
+import treematcher
 
 DESC=''
 
@@ -13,35 +18,33 @@ def populate_args(extract_args_p):
     """
     extract_args = extract_args_p.add_argument_group('TREEMATCHER OPTIONS')
 
-    extract_args.add_argument("--pattern", dest="pattern",
-                              nargs=1,
-                              help="")
-    extract_args.add_argument("--pattern-format", dest="pattern_format",
+    extract_args.add_argument("-p", dest="pattern",
                               nargs=1,
                               help="")
     extract_args.add_argument("--quoted-node-names", dest="quoted_node_names",
                               action="store_true",
                               help="")
 
-    extract_args.add_argument("--trees", dest="trees",
-                              nargs="*",
+    extract_args.add_argument("-t", dest="trees",
+                              nargs="+",
                               help="")
     extract_args.add_argument("--tree-format", dest="tree_format",
-                              nargs=1,
+                              type=int,
+                              default=0,
                               help="")
 
 
 def run(args):
-    from .. import Tree, PhyloTree
-    import treematcher
-
     if args.pattern is not None:
         p = args.pattern[0]
-        pattern = treematcher.TreePattern(p, format=int(args.pattern_format[0]), quoted_node_names=args.quoted_node_names)
+        pattern = treematcher.TreePattern(p)
+        print pattern
         if args.trees is not None:
             for t in args.trees:
-                t = Tree(t, format=int(args.tree_format[0]), quoted_node_names=args.quoted_node_names)
-                print(pattern.find_match(t, None))
+                t = Tree(t, format=args.tree_format,
+                         quoted_node_names=args.quoted_node_names)
+                for match in pattern.find_match(t, None):
+                    print match
 
         else:
             log.error('Please specify a tree to search.')
@@ -66,3 +69,10 @@ def run(args):
 
 
         '''
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    populate_args(parser)
+    args = parser.parse_args(sys.argv[1:])
+    run(args)
