@@ -1,0 +1,13 @@
+
+
+
+(( '@.species == "human"', ' @.species = "mouse"'),
+  '@.species == human',  '@.species = mouse');
+
+(   'human'  )
+
+
+
+
+has_leave()
+count_leaves()

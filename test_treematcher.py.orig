@@ -3,6 +3,8 @@ from ete3 import Tree, PhyloTree, NCBITaxa
 from treematcher import TreePattern
 import unittest
 
+# DATABASE_PATH = "testdb.sqlite"
+DATABASE_PATH = "../ete/testdb.sqlite"
 
 class Test_TreePattern(unittest.TestCase):
     def test_ete_params(self):
@@ -30,9 +32,9 @@ class Test_TreePattern(unittest.TestCase):
         pattern2 = TreePattern(pattern2, format=8, quoted_node_names=True)
 
         tree = Tree("(hello,(1,2,3)kk)pasa:1;", format=1)
-        match0 = pattern0.find_match(tree, maxhits=1)
-        match1 = pattern1.find_match(tree, maxhits=1)
-        match2 = pattern2.find_match(tree, maxhits=1)
+        match0 = pattern0.find_match(tree, None, maxhits=1)
+        match1 = pattern1.find_match(tree, None, maxhits=1)
+        match2 = pattern2.find_match(tree, None, maxhits=1)
 
         self.assertEqual(list(match0), [])
         self.assertEqual(list(match1)[0].name, 'pasa')
@@ -44,7 +46,7 @@ class Test_TreePattern(unittest.TestCase):
         tests syntax we've created like node.leaves, node.children are working
         """
         pattern1 = """( '  @.dist >= 0.5 ' , ' @.dist<2  ')
-            '    "Pan_troglodytes_1" in leaves(@)';"""
+            '    "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[0] or "Pan_troglodytes_1" in @.leaves and "Homo_sapiens_1" in @.children[1] ';"""
 
         pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
 
@@ -52,16 +54,16 @@ class Test_TreePattern(unittest.TestCase):
             "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates3)primates2)primates1, ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1)primates0;",
             format=1)
 
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[0].name, 'primates0')
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[1].name, '')
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[2].name, 'primates1')
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[3].name, 'primates2')
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[4].name, 'primates3')
+        self.assertEqual(list(pattern1.find_match(tree, None, maxhits=None))[0].name, 'primates0')
+        self.assertEqual(list(pattern1.find_match(tree, None, maxhits=None))[1].name, '')
+        self.assertEqual(list(pattern1.find_match(tree, None, maxhits=None))[2].name, 'primates1')
+        self.assertEqual(list(pattern1.find_match(tree, None, maxhits=None))[3].name, 'primates2')
+        self.assertEqual(list(pattern1.find_match(tree, None, maxhits=None))[4].name, 'primates3')
 
         tree2 = PhyloTree(
             "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_2:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
             format=1)
-        self.assertEqual(len(list(pattern1.find_match(tree2, maxhits=None))), 0)
+        self.assertEqual(len(list(pattern1.find_match(tree2, None, maxhits=None))), 0)
 
 
     def test_species(self):
@@ -76,11 +78,11 @@ class Test_TreePattern(unittest.TestCase):
             format=1)
         species_tree.set_species_naming_function(lambda n: n.name.split("_")[1] if "_" in n.name else '')
 
-        pattern0 = """((( 'species(@) in ("sapiens","pygmaeus")  '))' "Pan_troglodytes_1" ');"""
+        pattern0 = """((('@.species in ("sapiens","pygmaeus")  '))' "Pan_troglodytes_1" ');"""
         pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
         root = species_tree.get_tree_root()
 
-        self.assertEqual(list(pattern0.find_match(species_tree)), [root])
+        self.assertEqual(list(pattern0.find_match(species_tree, None)), [root])
 
         # test ncbi taxonomy
 
@@ -97,12 +99,26 @@ class Test_TreePattern(unittest.TestCase):
 
         pattern1 = TreePattern(pattern1, format=1, quoted_node_names=True)
         pattern2 = TreePattern(pattern2, format=1, quoted_node_names=True)
-        match1 = pattern1.find_match(taxonomy_tree, maxhits=None)
-        match2 = pattern2.find_match(taxonomy_tree, maxhits=1)
+<<<<<<< HEAD
+        match1 = pattern1.find_match(taxonomy_tree, None)
+        match2 = pattern2.find_match(taxonomy_tree, None)
+
+        self.assertEqual(match1, (True, root))
+        self.assertEqual(match2, (True, root))
+
+    def test_evol_events(self):
+        """
+      tests that .evol_event returns "R" or "D"
+      """
+        pass
+=======
+        match1 = pattern1.find_match(taxonomy_tree, None, maxhits=None)
+        match2 = pattern2.find_match(taxonomy_tree, None, maxhits=1)
 
         self.assertEqual(len(list(match1)), 5)
         self.assertEqual(list(match2), [root])
 
+>>>>>>> 37690ea446d5e4b84023097b3dc1fcc9ff3c12c4
 
     def test_lineages(self):
         """
@@ -155,7 +171,7 @@ class Test_TreePattern(unittest.TestCase):
                 """
             pattern = TreePattern(pattern, format=8, quoted_node_names=False)
 
-            self.assertEqual(list(pattern.find_match(tree))[0].lineage, lineages[index])
+            self.assertEqual(list(pattern.find_match(tree, None))[0].lineage, lineages[index])
             index += 1
 
         trees = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]
@@ -172,41 +188,31 @@ class Test_TreePattern(unittest.TestCase):
                 """
             pattern = TreePattern(pattern, format=8, quoted_node_names=False)
 
-            self.assertEqual(list(pattern.find_match(tree))[0].lineage, lineages[index])
+            self.assertEqual(list(pattern.find_match(tree, None))[0].lineage, lineages[index])
 
             index += 1
 
     def test_cached_attributes(self):
-        pattern0 = """  '@.dist == 1 and "Gallus_gallus_1" in leaves(@)' ;"""
-        pattern1 = """( "Hom" in species(@) , n_leaves(@) > 2  )    "Pan_troglodytes_1" in leaves(@);"""
+        pattern0 = """   @.dist == 1 and "Gallus_gallus_1" in @.leaves ;"""
+        pattern1 = """( '"Homo" in @.contains_species ' , ' @.size>2  ')
+           '    "Pan_troglodytes_1" in @.leaves';"""
 
-
+<<<<<<< HEAD
+=======
         pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
-        pattern1 = TreePattern(pattern1, format=8, quoted_node_names=False)
+        pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
 
         tree = PhyloTree(
             "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates)primates), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
             format=1)
+        self.assertEqual(len(list(pattern0.find_match(tree, None, maxhits=None))), 4)
+        self.assertEqual(len(list(pattern0.find_match(tree, None))), 1)
+        self.assertEqual(len(list(pattern1.find_match(tree, None))), 1)
+        self.assertEqual(len(list(pattern1.find_match(tree, None, maxhits=None))), 1)
 
-        self.assertEqual(len(list(pattern0.find_match(tree, maxhits=None))), 4)
-        self.assertEqual(len(list(pattern0.find_match(tree))), 1)
-        self.assertEqual(len(list(pattern1.find_match(tree, maxhits=None))), 1)
 
-    def test_shortcut_functions(self):
-        t = PhyloTree(
-            "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
-        t.set_species_naming_function(lambda node: node.name.split("_")[0])
-        t.get_descendant_evol_events()
 
-        pattern0 = """('n_speciations(@) > 0')' n_duplications(@) > 0 '; """
-        pattern1 = """( 'contains(@, ["Chimp_2", "Chimp_3"])'); """
-
-        pattern0 = TreePattern(pattern0, format=8, quoted_node_names=True)
-        pattern1 = TreePattern(pattern1, format=8, quoted_node_names=True)
-
-        self.assertEqual(len(list(pattern0.find_match(t, maxhits=None))), 5)
-        self.assertEqual(len(list(pattern1.find_match(t, maxhits=None))), 4)
-
+>>>>>>> 37690ea446d5e4b84023097b3dc1fcc9ff3c12c4
 def run():
     unittest.main()
 
