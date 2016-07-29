@@ -56,7 +56,6 @@ class _FakeCache(object):
         """ Helper function to mimic the behaviour of a cache, so you functions can
         refer to a cache even when this has not been created, thus simplifying code
         writing. """
-        print 'NO CACHE'
         if leaves_only:
             iter_nodes = node.iter_leaves
         else:
@@ -111,10 +110,11 @@ class PatternSyntax(object):
         else:
             species_names = set(species_names)
 
+        found = 0
         for sp in self.cache.get_cached_attr('species', target_node, leaves_only=True):
             if sp in species_names:
-                return True
-        return False
+                found += 1
+        return found == len(species_names)
 
     def contains_leaves(self, target_node, node_names):
         """ Shortcut function to find if a node constains at least one of the
@@ -125,10 +125,11 @@ class PatternSyntax(object):
         else:
             node_names = set(node_names)
 
+        found = 0
         for name in self.cache.get_cached_attr('name', target_node, leaves_only=True):
             if name in node_names:
-                return True
-        return False
+                found += 1
+        return found == len(node_names)
 
     def n_species(self, target_node):
         """ Shortcut function to find the number of species within a node and
@@ -137,11 +138,10 @@ class PatternSyntax(object):
         species = self.cache.get_cached_attr('species', target_node, leaves_only=True)
         return len(set(species))
 
-    def n_leaves(target_node):
+    def n_leaves(self, target_node):
         """ Shortcut function to find the number of leaves within a node and any
                 of it's descendants. """
-
-        return len(self.cache.get_cached_attr('name', target_node, leaves_only=True))
+        return len(self.cache.get_leaves(target_node))
 
     def n_duplications(self, target_node):
         """
