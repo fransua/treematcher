@@ -320,29 +320,27 @@ def test():
     t = PhyloTree(
         "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
 
-    cache = TreePatternCache(t)
-    syntax = PatternSyntax()
-
     t.set_species_naming_function(lambda node: node.name.split("_")[0])
     t.get_descendant_evol_events()
 
-    pattern1 = """('"Chimp" in species(@)', ''); """
-    pattern1 = TreePattern(pattern1)
+    #Basic usage
+    pattern = TreePattern("""('"Chimp" in species(@)', ''); """)
+    print pattern.match(t)
 
-    print pattern1.match(t)
-    print pattern1.match(t, cache)
+    #Using cache
+    cache = TreePatternCache(t)
+    pattern = TreePattern("""('"Chimp" in species(@)', ''); """)
+    print pattern.match(t, cache)
 
-    # quoted namess ETE branch update to allow the following
-    p2 = TreePattern(""" '"Human_1" in leaves(@)'; """)
-
-
-    #should return 5 results
-    #print(len(list(pattern0.find_match(t, None, maxhits=None))))
-
-    #should return 4 results
-    #print(len(list(pattern1.find_match(t, None, maxhits=None))))
+    #Expanding vocabulary
+    class MySyntax(PatternSyntax):
+        def my_nice_function(self, node):
+            return node.name == 'Human_1'
+    my_syntax = MySyntax()
+    pattern = TreePattern(""" 'my_nice_function(@)'; """, syntax=my_syntax)
+    for match in pattern.find_match(t, cache):
+        print match
 
 
 if __name__ == "__main__":
-
     test()
