@@ -2,6 +2,42 @@
 
 In mathematics, a standard way of representing graphical trees with edge lengths is the Newick format which uses a specific syntax (such as parentheses and commas). The TreeMatcher module defines a tree pattern by extending the Newick format to include rules and filters with a regular-expression-like vocabulary. These patterns are then searched for using a tree traversal algorithm.
 
+## Quick Start
+
+#### Basic Usage
+```
+from ete3 import PhyloTree
+from treematcher import TreePattern, TreePatternCache, PatternSyntax
+
+# loads an example tree
+t = PhyloTree("((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
+t.set_species_naming_function(lambda node: node.name.split("_")[0])
+t.get_descendant_evol_events()
+
+# Basic pattern search
+pattern = TreePattern("""('"Chimp" in species(@)', ''); """)
+print pattern.match(t)
+# Returns: TRUE
+```
+
+#### Using cache
+```
+cache = TreePatternCache(t)
+pattern = TreePattern("""('"Chimp" in species(@)', ''); """)
+print pattern.match(t, cache)
+```
+
+#### Expanding syntax vocabulary
+```
+class MySyntax(PatternSyntax):
+    def my_nice_function(self, node):
+        return node.name == 'Human_1'
+my_syntax = MySyntax()
+pattern = TreePattern(""" 'my_nice_function(@)'; """, syntax=my_syntax)
+for match in pattern.find_match(t, cache):
+    print match
+```
+
 ### Syntax
 
 ETE uses its own formalism to represent phylogenetic trees (see Tree class). A pattern can be written by accessing the attributes and functions available to an ETE Tree, using Python code directly, or through custom functions to use as constrinats. A tree pattern structure is created using the Newick format.
