@@ -53,8 +53,8 @@ class _FakeCache(object):
         pass
 
     def get_cached_attr(self, attr_name, node, leaves_only=False):
-        """ Helper function to mimic the behaviour of a cache, so you functions can
-        refer to a cache even when this has not been created, thus simplifying code
+        """ Helper function to mimic the behaviour of a cache, so functions can
+        refer to a cache even when one has not been created, thus simplifying code
         writing. """
         if leaves_only:
             iter_nodes = node.iter_leaves
@@ -73,7 +73,7 @@ class _FakeCache(object):
 
 class PatternSyntax(object):
     def __init__(self):
-        # Creates a fake cache to ensure all functions bellow are functioning
+        # Creates a fake cache to ensure all functions below are functioning
         # event if no real cache is provided
         self.__fake_cache = _FakeCache()
         self.__cache = None
@@ -117,7 +117,7 @@ class PatternSyntax(object):
         return found == len(species_names)
 
     def contains_leaves(self, target_node, node_names):
-        """ Shortcut function to find if a node constains at least one of the
+        """ Shortcut function to find if a node contains at least one of the
         node names provided. """
 
         if isinstance(node_names, six.string_types):
@@ -218,16 +218,15 @@ class TreePattern(Tree):
 
         # Load the pattern string as a normal ETE tree, where node names are
         # python expressions
-        super(TreePattern, self).__init__(newick, format, dist, support, name,
-                                          quoted_node_names='True')
+        super(TreePattern, self).__init__(newick, format, dist, support, name, quoted_node_names)
 
         # Set a default syntax controller if a custom one is not provided
         self.syntax = syntax if syntax else PatternSyntax()
 
-    # FUNCTIONS EXPOSSED TO USERS START HERE
+    # FUNCTIONS EXPOSED TO USERS START HERE
     def match(self, node, cache=None):
         """
-        Check all constraints interatively on the target node.
+        Check all constraints interactively on the target node.
 
         :param node: A tree (node) to be searched for a given pattern.
 
@@ -237,7 +236,7 @@ class TreePattern(Tree):
         :return: True if a match has been found, otherwise False.
         """
         self.syntax.cache = cache
-        # does the target node matches root node of pattern?
+        # does the target node match the root node of the pattern?
         status = self.is_local_match(node, cache)
 
         # if so, continues evaluating children pattern nodes against target node
@@ -250,7 +249,8 @@ class TreePattern(Tree):
                     sub_status = True
                     for i in range(len(self.children)):
                         st = self.children[i].match(candidate[i], cache)
-                        sub_status &= st
+                        if st is not None:      #st returns None?
+                            sub_status &= st
                     status = sub_status
                     if status:
                         break
@@ -285,6 +285,9 @@ class TreePattern(Tree):
             # match (allows using regular newick string as patterns)
             constraint = '__target_node.name == "%s"' %self.name
 
+        syntax = self.syntax
+        print("syntax is finally", syntax)
+        print("for the constraint", constraint)
         try:
             st = eval(constraint, constraint_scope) if constraint else True
             st = bool(st)  # note that bool of any string returns true
@@ -294,6 +297,21 @@ class TreePattern(Tree):
         except (AttributeError, IndexError) as err:
             raise ValueError('Constraint evaluation failed at %s: %s' %
                              (target_node, err))
+        except NameError:
+            try:
+                #temporary fix. Can not access custom syntax on all nodes. Get it from the root node.
+                root_syntax = self.get_tree_root().syntax
+                print("root_syntax is ", root_syntax)
+                constraint_scope = {attr_name: getattr(self.get_tree_root().syntax, attr_name)
+                                    for attr_name in dir(self.get_tree_root().syntax)}
+                constraint_scope.update({"__target_node": target_node})
+
+                st = eval(constraint, constraint_scope) if constraint else True
+                st = bool(st)  # note that bool of any string returns true
+                print("st is", st)
+            except NameError as err:
+                raise NameError('Constraint evaluation failed at %s: %s' %
+                         (target_node, err))
         else:
             #self.syntax.__cache = None
             return st
@@ -324,8 +342,8 @@ def test():
     t.get_descendant_evol_events()
 
     #Basic usage
-    pattern = TreePattern("""('"Chimp" in species(@)', ''); """)
-    print pattern.match(t)
+    #pattern = TreePattern("""(' "Chimp" in species(@)', ''); """)
+    #print pattern.match(t)
 
     #Using cache
     cache = TreePatternCache(t)
@@ -337,9 +355,19 @@ def test():
         def my_nice_function(self, node):
             return node.name == 'Human_1'
     my_syntax = MySyntax()
-    pattern = TreePattern(""" 'my_nice_function(@)'; """, syntax=my_syntax)
-    for match in pattern.find_match(t, cache):
+    pattern = """ ('"Chimp" in species(@)')'my_nice_function(@)'; """  # syntax works on single node
+    t_pattern = TreePattern(pattern, syntax=my_syntax)
+    for match in t_pattern.find_match(t, cache):
         print match
+    pattern1 = """ ('my_nice_function(@)')'"Chimp" in species(@)'; """  # syntax fails on inner node
+    t_pattern1 = TreePattern(pattern1, syntax=my_syntax)
+    for match1 in t_pattern1.find_match(t, cache):
+        print match1
+    #pattern2 = """ 'my_nice_function(@)'; """
+    #t_pattern2 = TreePattern(pattern2, syntax=my_syntax)  # quoted node names fails on single node
+    #for match2 in t_pattern2.find_match(t, cache):
+    #    print match2
+
 
 
 if __name__ == "__main__":

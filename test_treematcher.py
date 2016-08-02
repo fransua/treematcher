@@ -104,7 +104,7 @@ class Test_TreePattern(unittest.TestCase):
         match1 = pattern1.find_match(taxonomy_tree, maxhits=None)
         match2 = pattern2.find_match(taxonomy_tree, maxhits=1)
 
-        self.assertEqual(len(list(match1)), 1)
+        self.assertEqual(len(list(match1)), 5)
         self.assertEqual(list(match2), [root])
 
 
