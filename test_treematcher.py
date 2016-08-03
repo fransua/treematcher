@@ -44,13 +44,11 @@ class Test_TreePattern(unittest.TestCase):
         """
         tests syntax we've created like node.leaves, node.children are working
         """
-        pattern1 = """( '  @.dist >= 0.5 ' , ' @.dist<2  ')
-            '    "Pan_troglodytes_1" in leaves(@)';"""
-
+        pattern1 = """' "Pan_troglodytes_1" in leaves(@)';"""
         pattern1 = TreePattern(pattern1)
 
         tree = PhyloTree(
-            "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates4)primates3)primates2, ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1))primates1, Saccharomyces_cerevisiae_1:1)root;",
+            "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)p4)p3)p2, ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1))p1, Saccharomyces_cerevisiae_1:1)root;",
             format=1)
 
         # note that maxhits<1 not allowed, uses default which is one match
@@ -61,13 +59,15 @@ class Test_TreePattern(unittest.TestCase):
         three_matches= list(pattern1.find_match(tree, maxhits=3))
         self.assertEqual(len(three_matches), 3)
 
-        primates = list(pattern1.find_match(tree, maxhits=None))
-        self.assertEqual(len(primates), 5)
-        self.assertEqual(primates[0].name, 'root')
-        self.assertEqual(primates[1].name, 'primates1')
-        self.assertEqual(primates[2].name, 'primates2')
-        self.assertEqual(primates[3].name, 'primates3')
-        self.assertEqual(primates[4].name, 'primates4')
+        pan_ancestor = list(pattern1.find_match(tree, maxhits=None))  #note that leaf constraint also returns leaf
+
+        self.assertEqual(len(pan_ancestor), 6)
+        self.assertEqual(pan_ancestor[0].name, 'root')
+        self.assertEqual(pan_ancestor[1].name, 'p1')
+        self.assertEqual(pan_ancestor[2].name, 'p2')
+        self.assertEqual(pan_ancestor[3].name, 'p3')
+        self.assertEqual(pan_ancestor[4].name, 'p4')
+        self.assertEqual(pan_ancestor[5].name, 'Pan_troglodytes_1')
 
         tree2 = PhyloTree(
             "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_2:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
@@ -91,10 +91,12 @@ class Test_TreePattern(unittest.TestCase):
         species_tree.set_species_naming_function(lambda n: n.name.split("_")[1] if "_" in n.name else '')
 
         pattern0 = """('',
-                       ('set(["sapiens","pygmaeus"]) & species(@)',
+                       (' len(set(["sapiens","pygmaeus"]) & species(@))>0',
                        Pan_troglodytes_1)
                        );"""
+
         pattern0 = TreePattern(pattern0)
+
 
         root = species_tree.get_tree_root()
         self.assertEqual(list(pattern0.find_match(species_tree)), [root])
@@ -108,12 +110,13 @@ class Test_TreePattern(unittest.TestCase):
 
         pattern1 = """ '  @.sci_name == "Euarchontoglires" ';"""
         pattern2 = """
-          (( '@.sci_name=="Homo sapiens" , 9526 in @.lineage ' )' @.rank=="subfamily" and @.taxid == 207598 ')
+          (( '@.sci_name=="Homo sapiens"' , '9526 in @.lineage ' )' @.rank=="subfamily" and @.taxid == 207598 ')
           '  @.sci_name == "Euarchontoglires" and "cellular organisms" in @.named_lineage';
           """
 
         pattern1 = TreePattern(pattern1)
         pattern2 = TreePattern(pattern2)
+
         match1 = pattern1.find_match(taxonomy_tree)
         match2 = pattern2.find_match(taxonomy_tree)
 
@@ -156,6 +159,7 @@ class Test_TreePattern(unittest.TestCase):
         for tree, tree_name, has_matches in trees:
             tree.set_species_naming_function(lambda n: n.name.split(".")[0] if "." in n.name else '')
             tree.annotate_ncbi_taxa()
+            # Has support for two primates where at least one is not Homo sapiens
             pattern = """
                 ( ' 9443 in @.lineage ' , ' 9443 in @.lineage and @.name!=9606 ' )' @.support >= 0.9 ';
                 """
@@ -168,7 +172,14 @@ class Test_TreePattern(unittest.TestCase):
                 test_status = (9443 in match.children[0].lineage and \
                                9443 in match.children[1].lineage and \
                                match.children[1].name != '9606')
+                # permute children and check again
+                test_status2 = (9443 in match.children[1].lineage and \
+                               9443 in match.children[0].lineage and \
+                               match.children[0].name != '9606')
                 self.assertEqual(test_status, True)
+                self.assertEqual(test_status2, True)
+
+
 
     def test_cached_attributes(self):
         pattern0 = """  '"Gallus_gallus_1" in leaves(@)' ;"""
@@ -196,9 +207,9 @@ class Test_TreePattern(unittest.TestCase):
             """((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))),
             ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);""")
         t.set_species_naming_function(lambda node: node.name.split("_")[0])
-        t.get_descendant_evol_events()
+        t.get_descendant_evol_events()  # DDDSSSDDS
+
         root = t.get_tree_root()
-        # DDDSSSDDS
         # Detects two consecutive nodes with duplications
         pattern0 = """('n_duplications(@) > 0')'n_duplications(@) > 0 '; """
         pattern1 = """( 'contains_leaves(@, ["Chimp_2", "Chimp_3"])'); """
@@ -207,8 +218,6 @@ class Test_TreePattern(unittest.TestCase):
         pattern0 = TreePattern(pattern0)
         pattern1 = TreePattern(pattern1)
         pattern2 = TreePattern(pattern2)
-
-        #print list(pattern1.find_match(t, maxhits=None))[0]== root
 
         pattern0_match = list(pattern0.find_match(t, maxhits=None))
         pattern1_match = list(pattern1.find_match(t, maxhits=None))
@@ -224,9 +233,6 @@ class Test_TreePattern(unittest.TestCase):
         self.assertEqual(len(pattern2_match), 2)
         self.assertEqual(pattern2_match[0], root)
         self.assertEqual(pattern2_match[1], root.children[0])
-
-
-
 
 
 def run():

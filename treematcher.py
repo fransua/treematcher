@@ -36,7 +36,7 @@ class TreePatternCache(object):
          Human, 1.0, etc.)
 
         """
-        #print("USING CACHE")
+        print("USING CACHE")
         cache = self.leaves_cache if leaves_only else self.all_node_cache
         values = [getattr(n, attr_name, None) for n in cache[node]]
         return values
@@ -286,14 +286,18 @@ class TreePattern(Tree):
             constraint = '__target_node.name == "%s"' %self.name
 
         syntax = self.syntax
-        #print("syntax is finally", syntax)
-        #print("for the constraint", constraint)
+        # print("syntax is finally", syntax)
+        # print("for the constraint", constraint)
         try:
             st = eval(constraint, constraint_scope) if constraint else True
-            st = bool(st)  # note that bool of any string returns true
+            #if isinstance(st, six.string_types):
+            #    raise ValueError
+            #else:
+            #    st = bool(st)  # all sets return true
+
         except ValueError:
-            raise ValueError("not a boolean result: %s -> %s" %
-                             (self.constraint, st))
+            raise ValueError("not a boolean result: %s. Check quoted_node_names." %
+                             (st))
         except (AttributeError, IndexError) as err:
             raise ValueError('Constraint evaluation failed at %s: %s' %
                              (target_node, err))
@@ -302,13 +306,17 @@ class TreePattern(Tree):
                 #temporary fix. Can not access custom syntax on all nodes. Get it from the root node.
                 root_syntax = self.get_tree_root().syntax
                 #print("root_syntax is ", root_syntax)
-                constraint_scope = {attr_name: getattr(self.get_tree_root().syntax, attr_name)
-                                    for attr_name in dir(self.get_tree_root().syntax)}
+                constraint_scope = {attr_name: getattr(root_syntax, attr_name)
+                                    for attr_name in dir(root_syntax)}
                 constraint_scope.update({"__target_node": target_node})
 
                 st = eval(constraint, constraint_scope) if constraint else True
-                st = bool(st)  # note that bool of any string returns true
-                #print("st is", st)
+
+                # if isinstance(st, six.string_types):
+                #    raise ValueError
+                # else:
+                #    st = bool(st)  # all sets return true
+                return st
             except NameError as err:
                 raise NameError('Constraint evaluation failed at %s: %s' %
                          (target_node, err))
@@ -340,10 +348,7 @@ def test():
 
     t.set_species_naming_function(lambda node: node.name.split("_")[0])
     t.get_descendant_evol_events()
-    print t
 
-    for node in t.traverse():
-        print node.name
     #Basic usage
     #pattern = TreePattern("""(' "Chimp" in species(@)', ''); """)
     #print pattern.match(t)
@@ -356,7 +361,7 @@ def test():
     #Expanding vocabulary
     class MySyntax(PatternSyntax):
         def my_nice_function(self, node):
-            return node.name == 'Toe'
+            return node.name == 'Chim'
     my_syntax = MySyntax()
     pattern = """ ('"Chimp" in species(@)')'my_nice_function(@)'; """
     t_pattern = TreePattern(pattern, syntax=my_syntax)
@@ -368,9 +373,8 @@ def test():
         print("match1 is", match1)
     pattern2 = """ 'my_nice_function(@)'; """
     t_pattern2 = TreePattern(pattern2, syntax=my_syntax)
-    #for match2 in t_pattern2.find_match(t, cache):
-    print("match2 is", list(t_pattern2.find_match(t, cache)))
-
+    for match2 in t_pattern2.find_match(t, cache):
+        print("match2 is", list(t_pattern2.find_match(t, cache)))
 
 
 if __name__ == "__main__":
