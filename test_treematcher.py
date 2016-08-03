@@ -20,7 +20,7 @@ class Test_TreePattern(unittest.TestCase):
             """
         pattern2 = """
             (
-            'len(@.children) > 2 and @.name in ("hello","kk") '
+            'len(@.children) > 2 and @.name in ("bye","kk") '
             )
             '(len(@.name) > 3) and @.dist >= 0.5';
             """
@@ -30,15 +30,16 @@ class Test_TreePattern(unittest.TestCase):
         pattern2 = TreePattern(pattern2)
 
         tree = Tree("(hello,(1,2,3)kk)pasa:1;", format=1)
-        match0 = pattern0.find_match(tree, maxhits=1)
-        match1 = pattern1.find_match(tree, maxhits=1)
-        match2 = pattern2.find_match(tree, maxhits=1)
+        match0 = pattern0.find_match(tree)
+        match1 = pattern1.find_match(tree)
+        match2 = pattern2.find_match(tree)
+
 
         self.assertEqual(list(match0), [])
         self.assertEqual(list(match1)[0].name, 'pasa')
         self.assertEqual(list(match2)[0].name, 'pasa')
 
-    def test_syntax_to_python(self):
+    def test_maxhits(self):
 
         """
         tests syntax we've created like node.leaves, node.children are working
@@ -49,19 +50,30 @@ class Test_TreePattern(unittest.TestCase):
         pattern1 = TreePattern(pattern1)
 
         tree = PhyloTree(
-            "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates3)primates2)primates1, ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1)primates0;",
+            "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates4)primates3)primates2, ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1))primates1, Saccharomyces_cerevisiae_1:1)root;",
             format=1)
 
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[0].name, 'primates0')
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[1].name, '')
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[2].name, 'primates1')
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[3].name, 'primates2')
-        self.assertEqual(list(pattern1.find_match(tree, maxhits=None))[4].name, 'primates3')
+        # note that maxhits<1 not allowed, uses default which is one match
+        one_match = list(pattern1.find_match(tree))
+        self.assertEqual(len(one_match), 1)
+        self.assertEqual(one_match[0].name, 'root')
+
+        three_matches= list(pattern1.find_match(tree, maxhits=3))
+        self.assertEqual(len(three_matches), 3)
+
+        primates = list(pattern1.find_match(tree, maxhits=None))
+        self.assertEqual(len(primates), 5)
+        self.assertEqual(primates[0].name, 'root')
+        self.assertEqual(primates[1].name, 'primates1')
+        self.assertEqual(primates[2].name, 'primates2')
+        self.assertEqual(primates[3].name, 'primates3')
+        self.assertEqual(primates[4].name, 'primates4')
 
         tree2 = PhyloTree(
             "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_2:1))), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
             format=1)
-        self.assertEqual(len(list(pattern1.find_match(tree2, maxhits=None))), 0)
+
+        self.assertEqual(len(list(pattern1.find_match(tree2))), 0)
 
 
     def test_species(self):
@@ -83,6 +95,7 @@ class Test_TreePattern(unittest.TestCase):
                        Pan_troglodytes_1)
                        );"""
         pattern0 = TreePattern(pattern0)
+
         root = species_tree.get_tree_root()
         self.assertEqual(list(pattern0.find_match(species_tree)), [root])
 
@@ -101,10 +114,10 @@ class Test_TreePattern(unittest.TestCase):
 
         pattern1 = TreePattern(pattern1)
         pattern2 = TreePattern(pattern2)
-        match1 = pattern1.find_match(taxonomy_tree, maxhits=None)
-        match2 = pattern2.find_match(taxonomy_tree, maxhits=1)
+        match1 = pattern1.find_match(taxonomy_tree)
+        match2 = pattern2.find_match(taxonomy_tree)
 
-        self.assertEqual(len(list(match1)), 5)
+        self.assertEqual(list(match1), [root])
         self.assertEqual(list(match2), [root])
 
 
@@ -158,9 +171,8 @@ class Test_TreePattern(unittest.TestCase):
                 self.assertEqual(test_status, True)
 
     def test_cached_attributes(self):
-        pattern0 = """  '@.dist == 1 and "Gallus_gallus_1" in leaves(@)' ;"""
+        pattern0 = """  '"Gallus_gallus_1" in leaves(@)' ;"""
         pattern1 = """( '"Hom" in species(@) and n_leaves(@) > 2')'"Pan_troglodytes_1" in leaves(@)';"""
-
 
         pattern0 = TreePattern(pattern0)
         pattern1 = TreePattern(pattern1)
@@ -169,11 +181,15 @@ class Test_TreePattern(unittest.TestCase):
             "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates)primates), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
             format=1)
 
-        self.assertEqual(len(list(pattern0.find_match(tree, maxhits=None))), 4)
-        self.assertEqual(len(list(pattern0.find_match(tree))), 1)
-        #for n in pattern1.find_match(tree, None):
-        #    print n
-        self.assertEqual(len(list(pattern1.find_match(tree, maxhits=None))), 3)
+        root = tree.get_tree_root()
+        pattern0_match = list(pattern0.find_match(tree, maxhits=None))
+        self.assertEqual(len(pattern0_match), 5)  # returns leaf itself
+        self.assertEqual(pattern0_match[0], root)
+        self.assertEqual(pattern0_match[4].name, "Gallus_gallus_1")
+        pattern1_match = list(pattern1.find_match(tree, maxhits=None))
+        self.assertEqual(len(pattern1_match), 3)
+        self.assertEqual(pattern1_match[0], root)
+        self.assertEqual(pattern1_match[2].children[1].children[1].children[0].name, "Homo_sapiens_1")
 
     def test_shortcut_functions(self):
         t = PhyloTree(
@@ -181,17 +197,37 @@ class Test_TreePattern(unittest.TestCase):
             ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);""")
         t.set_species_naming_function(lambda node: node.name.split("_")[0])
         t.get_descendant_evol_events()
-
+        root = t.get_tree_root()
+        # DDDSSSDDS
         # Detects two consecutive nodes with duplications
         pattern0 = """('n_duplications(@) > 0')'n_duplications(@) > 0 '; """
-
         pattern1 = """( 'contains_leaves(@, ["Chimp_2", "Chimp_3"])'); """
+        pattern2 = """'n_speciations(@) > 3 '; """
 
         pattern0 = TreePattern(pattern0)
         pattern1 = TreePattern(pattern1)
+        pattern2 = TreePattern(pattern2)
 
-        self.assertEqual(len(list(pattern0.find_match(t, maxhits=None))), 3)
-        self.assertEqual(len(list(pattern1.find_match(t, maxhits=None))), 4)
+        #print list(pattern1.find_match(t, maxhits=None))[0]== root
+
+        pattern0_match = list(pattern0.find_match(t, maxhits=None))
+        pattern1_match = list(pattern1.find_match(t, maxhits=None))
+        pattern2_match = list(pattern2.find_match(t, maxhits=None))
+
+        self.assertEqual(len(pattern0_match), 3)
+        self.assertEqual(pattern0_match, pattern2_match + [root.children[0].children[0]])
+
+        self.assertEqual(len(pattern1_match), 4)
+        self.assertEqual(pattern1_match[0], root)
+        self.assertEqual(pattern1_match, pattern0_match + [root.children[0].children[0].children[1]])
+
+        self.assertEqual(len(pattern2_match), 2)
+        self.assertEqual(pattern2_match[0], root)
+        self.assertEqual(pattern2_match[1], root.children[0])
+
+
+
+
 
 def run():
     unittest.main()

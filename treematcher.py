@@ -36,7 +36,7 @@ class TreePatternCache(object):
          Human, 1.0, etc.)
 
         """
-        print "USING CACHE"
+        #print("USING CACHE")
         cache = self.leaves_cache if leaves_only else self.all_node_cache
         values = [getattr(n, attr_name, None) for n in cache[node]]
         return values
@@ -286,8 +286,8 @@ class TreePattern(Tree):
             constraint = '__target_node.name == "%s"' %self.name
 
         syntax = self.syntax
-        print("syntax is finally", syntax)
-        print("for the constraint", constraint)
+        #print("syntax is finally", syntax)
+        #print("for the constraint", constraint)
         try:
             st = eval(constraint, constraint_scope) if constraint else True
             st = bool(st)  # note that bool of any string returns true
@@ -301,14 +301,14 @@ class TreePattern(Tree):
             try:
                 #temporary fix. Can not access custom syntax on all nodes. Get it from the root node.
                 root_syntax = self.get_tree_root().syntax
-                print("root_syntax is ", root_syntax)
+                #print("root_syntax is ", root_syntax)
                 constraint_scope = {attr_name: getattr(self.get_tree_root().syntax, attr_name)
                                     for attr_name in dir(self.get_tree_root().syntax)}
                 constraint_scope.update({"__target_node": target_node})
 
                 st = eval(constraint, constraint_scope) if constraint else True
                 st = bool(st)  # note that bool of any string returns true
-                print("st is", st)
+                #print("st is", st)
             except NameError as err:
                 raise NameError('Constraint evaluation failed at %s: %s' %
                          (target_node, err))
