@@ -340,7 +340,10 @@ def test():
 
     t.set_species_naming_function(lambda node: node.name.split("_")[0])
     t.get_descendant_evol_events()
+    print t
 
+    for node in t.traverse():
+        print node.name
     #Basic usage
     #pattern = TreePattern("""(' "Chimp" in species(@)', ''); """)
     #print pattern.match(t)
@@ -353,20 +356,20 @@ def test():
     #Expanding vocabulary
     class MySyntax(PatternSyntax):
         def my_nice_function(self, node):
-            return node.name == 'Human_1'
+            return node.name == 'Toe'
     my_syntax = MySyntax()
-    pattern = """ ('"Chimp" in species(@)')'my_nice_function(@)'; """  # syntax works on single node
+    pattern = """ ('"Chimp" in species(@)')'my_nice_function(@)'; """
     t_pattern = TreePattern(pattern, syntax=my_syntax)
-    for match in t_pattern.find_match(t, cache):
-        print match
-    pattern1 = """ ('my_nice_function(@)')'"Chimp" in species(@)'; """  # syntax fails on inner node
+    #for match in t_pattern.find_match(t, cache):
+    print("match is", t_pattern.find_match(t, cache))
+    pattern1 = """ ('my_nice_function(@)')'"Chimp" in species(@)'; """
     t_pattern1 = TreePattern(pattern1, syntax=my_syntax)
     for match1 in t_pattern1.find_match(t, cache):
-        print match1
-    #pattern2 = """ 'my_nice_function(@)'; """
-    #t_pattern2 = TreePattern(pattern2, syntax=my_syntax)  # quoted node names fails on single node
+        print("match1 is", match1)
+    pattern2 = """ 'my_nice_function(@)'; """
+    t_pattern2 = TreePattern(pattern2, syntax=my_syntax)
     #for match2 in t_pattern2.find_match(t, cache):
-    #    print match2
+    print("match2 is", list(t_pattern2.find_match(t, cache)))
 
 
 
