@@ -344,75 +344,11 @@ class TreePattern(Tree):
 
 
 def test():
-    t = PhyloTree(
-        "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
-
-    #t.set_species_naming_function(lambda node: node.name.split("_")[0])
-    t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
-
-    #t.get_descendant_evol_events()
-
-    #Basic usage
-    #pattern = TreePattern(""" ' contains_species(@, "Chimp") ' ; """)  # doesn't work
-    pattern = TreePattern("""( 'contains_species(@, ["Chimp", "Human"])'); """)
-    #pattern = TreePattern("""( 'contains_leaves(@, ["Chimp_1", "Human_1"])'); """)
-
-    print pattern.match(t)
-
-    #Using cache
-    cache = TreePatternCache(t)
-    pattern = TreePattern("""('"Chimp" in species(@)', ''); """)
-    #print pattern.match(t, cache)
-    print list(pattern.find_match(t, cache=cache))
-
-    #Expanding vocabulary
-    class MySyntax(PatternSyntax):
-        def my_nice_function(self, node):
-            return node.name == 'Chimp_1'
-    my_syntax = MySyntax()
-
-    pattern = """ ('"Chimp" in species(@)')'my_nice_function(@)'; """
-    t_pattern = TreePattern(pattern, syntax=my_syntax)
-    #for match in t_pattern.find_match(t, cache):
-    print("match is", list(t_pattern.find_match(t, cache)))
-
-    pattern1 = """ ('my_nice_function(@)')'"Chimp" in species(@)'; """  # doesn't work
-    t_pattern1 = TreePattern(pattern1, syntax=my_syntax)
-    for match1 in t_pattern1.find_match(t, cache):
-        print("match1 is", list(match1))
-
-    pattern2 = """ 'my_nice_function(@)'; """
-    t_pattern2 = TreePattern(pattern2, syntax=my_syntax)
-    for match2 in t_pattern2.find_match(t, cache):
-        print("match2 is", list(t_pattern2.find_match(t, cache)))
-
-def tutorial2():
 
     import time
-    #
-    #                /-Human_1
-    #             /-|
-    #            |   \-Chimp_1
-    #         /D-|
-    #        |   |   /-Human_2
-    #        |    \-|
-    #        |      |    /-Chimp_2
-    #        |       \D-|
-    #     /D-|           \-Chimp_3
-    #    |   |
-    #    |   |       /-Fish_1
-    #    |   |   /D-|
-    #    |   |  |   |   /-Human_3
-    # -D-|    \-|    \-|
-    #    |      |       \-Fish_3
-    #    |      |
-    #    |       \-Yeast_2
-    #    |
-    #     \-Yeast_1
-
 
     t = PhyloTree(
-        "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);", format=8)
+        "((((((((((((((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);", format=8)
     t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
     t.get_descendant_evol_events()
     cache = TreePatternCache(t)
@@ -431,25 +367,12 @@ def tutorial2():
     # Using Cache
     start_time_cache = time.time()
     for i in range(0, 1000):
-        list(pattern.find_match(t, maxhits=None))
+        list(pattern.find_match(t, maxhits=None, cache=cache))
     end_time_cache = time.time()
     total_time_cache = (end_time_cache - start_time_cache) / 1000.00
     print("time with cache", total_time_cache)
 
-    # Expanding vocabulary
-    class MySyntax(PatternSyntax):
-        def my_nice_function(self, node):
-            return node.species == 'Chimp'
-
-    my_syntax = MySyntax()
-
-    pattern = """ 'my_nice_function(@)'; """
-    t_pattern = TreePattern(pattern, syntax=my_syntax)
-    for match in t_pattern.find_match(t, cache):
-        print(list(match))
-
 
 if __name__ == "__main__":
-    #test()
-    tutorial2()
+    test()
 

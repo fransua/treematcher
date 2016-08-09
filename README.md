@@ -172,41 +172,19 @@ Table 1: Examples of common constraints.
 
 
 
-## Advanced Topics
+### Advanced Topics
 
-## optimization
+#### optimization and using a cache
 
 Virtually any attribute available in ETE can be searched for on a tree, however, the larger the structure the more complex the pattern is, the more computationally intensive the search will be. Large Newick trees with complex conditional statements calling functions that require several tree traversals is not recommended.
 Instead, break complex patterns into smaller searches. If conditional statements are used, try putting the part of the search that you think will be faster first.
 
-### cacheing
 
 ```
     import time
-    #
-    #                /-Human_1
-    #             /-|
-    #            |   \-Chimp_1
-    #         /D-|
-    #        |   |   /-Human_2
-    #        |    \-|
-    #        |      |    /-Chimp_2
-    #        |       \D-|
-    #     /D-|           \-Chimp_3
-    #    |   |
-    #    |   |       /-Fish_1
-    #    |   |   /D-|
-    #    |   |  |   |   /-Human_3
-    # -D-|    \-|    \-|
-    #    |      |       \-Fish_3
-    #    |      |
-    #    |       \-Yeast_2
-    #    |
-    #     \-Yeast_1
-
 
     t = PhyloTree(
-        "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);", format=8)
+        "((((((((((((((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);", format=8)
     t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
     t.get_descendant_evol_events()
     cache = TreePatternCache(t)
@@ -225,7 +203,7 @@ Instead, break complex patterns into smaller searches. If conditional statements
     # Using Cache
     start_time_cache = time.time()
     for i in range(0, 1000):
-        list(pattern.find_match(t, maxhits=None))
+        list(pattern.find_match(t, maxhits=None, cache=cache))
     end_time_cache = time.time()
     total_time_cache = (end_time_cache - start_time_cache) / 1000.00
     print("time with cache", total_time_cache)
@@ -233,7 +211,7 @@ Instead, break complex patterns into smaller searches. If conditional statements
 
 ```
 
-### Custom Functions
+####  Custom Functions
 You can use your own custom functions and syntax in treematcher.  In the following example, a custom function is created in a custom class called MySyntax.
 
 ```
