@@ -113,9 +113,12 @@ The following tutorial shows the previous examples in more detail.
 
 
 ```
+
 ### The results of the Tutorial 1 are as follows:
 
-`      /-sample_1
+```
+
+      /-sample_1
    /-|
   |   \-sample_2
 --|
@@ -178,8 +181,57 @@ Instead, break complex patterns into smaller searches. If conditional statements
 
 ### cacheing
 
+```
+    import time
+    #
+    #                /-Human_1
+    #             /-|
+    #            |   \-Chimp_1
+    #         /D-|
+    #        |   |   /-Human_2
+    #        |    \-|
+    #        |      |    /-Chimp_2
+    #        |       \D-|
+    #     /D-|           \-Chimp_3
+    #    |   |
+    #    |   |       /-Fish_1
+    #    |   |   /D-|
+    #    |   |  |   |   /-Human_3
+    # -D-|    \-|    \-|
+    #    |      |       \-Fish_3
+    #    |      |
+    #    |       \-Yeast_2
+    #    |
+    #     \-Yeast_1
 
 
+    t = PhyloTree(
+        "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);", format=8)
+    t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
+    t.get_descendant_evol_events()
+    cache = TreePatternCache(t)
+    pattern = TreePattern(
+        """  (('n_duplications(@) > 0')'n_duplications(@) > 0 ')'contains_species(@, ["Chimp", "Human"])' ; """)
+
+    #basic usage
+    start_time = time.time()
+    for i in range(0, 1000):
+        list(pattern.find_match(t, maxhits=None))
+    end_time = time.time()
+    total_time= (end_time - start_time) / 1000.00
+    print("time without cache", total_time)
+
+
+    # Using Cache
+    start_time_cache = time.time()
+    for i in range(0, 1000):
+        list(pattern.find_match(t, maxhits=None))
+    end_time_cache = time.time()
+    total_time_cache = (end_time_cache - start_time_cache) / 1000.00
+    print("time with cache", total_time_cache)
+
+
+```
 
 ### Custom Functions
 You can use your own custom functions and syntax in treematcher.  In the following example, a custom function is created in a custom class called MySyntax.

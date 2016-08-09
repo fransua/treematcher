@@ -416,49 +416,25 @@ def tutorial2():
     t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
     t.get_descendant_evol_events()
     cache = TreePatternCache(t)
-    '''
+    pattern = TreePattern(
+        """  (('n_duplications(@) > 0')'n_duplications(@) > 0 ')'contains_species(@, ["Chimp", "Human"])' ; """)
+
     #basic usage
     start_time = time.time()
-
     for i in range(0, 1000):
-        # Determine whether the tree contains the species "Chimp"
-        pattern = TreePattern(""" ' "Chimp" in species(@) and "Human_1" in leaves(@)'; """)
         list(pattern.find_match(t, maxhits=None))
-
-        # Detect two consecutive nodes with duplications
-        pattern = TreePattern("""  (('n_duplications(@) > 0')'n_duplications(@) > 0 ')'contains_species(@, ["Chimp", "Human"])' ; """)
-        list(pattern.find_match(t, maxhits=None))
-
-
     end_time = time.time()
-
     total_time= (end_time - start_time) / 1000.00
-
     print("time without cache", total_time)
 
 
     # Using Cache
     start_time_cache = time.time()
-
     for i in range(0, 1000):
-        # Determine whether the tree contains the species "Chimp"
-        pattern = TreePattern(""" ' "Chimp" in species(@) and "Human_1" in leaves(@)'; """)
-        # pattern = TreePattern("""( 'contains_leaves(@, ["Chimp_1", "Human_1"])'); """)
-
         list(pattern.find_match(t, maxhits=None))
-
-        # Detect two consecutive nodes with duplications
-        pattern = TreePattern(
-            """  (('n_duplications(@) > 0')'n_duplications(@) > 0 ')'contains_species(@, ["Chimp", "Human"])' ; """)
-        list(pattern.find_match(t, maxhits=None))
-
     end_time_cache = time.time()
-
     total_time_cache = (end_time_cache - start_time_cache) / 1000.00
-
     print("time with cache", total_time_cache)
-
-    '''
 
     # Expanding vocabulary
     class MySyntax(PatternSyntax):
@@ -476,3 +452,4 @@ def tutorial2():
 if __name__ == "__main__":
     #test()
     tutorial2()
+
