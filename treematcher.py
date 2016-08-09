@@ -36,7 +36,7 @@ class TreePatternCache(object):
          Human, 1.0, etc.)
 
         """
-        print("USING CACHE")
+        # print("USING CACHE")
         cache = self.leaves_cache if leaves_only else self.all_node_cache
         values = [getattr(n, attr_name, None) for n in cache[node]]
         return values
@@ -59,7 +59,7 @@ class _FakeCache(object):
         if leaves_only:
             iter_nodes = node.iter_leaves
         else:
-            iter_nodes = node.iter_descendants
+            iter_nodes = node.traverse
 
         values = [getattr(n, attr_name, None) for n in iter_nodes()]
         return values
@@ -105,7 +105,7 @@ class PatternSyntax(object):
         """
         Shortcut function to find the species at a node and any of it's descendants.
         """
-        if isinstance(node_names, six.string_types):
+        if isinstance(species_names, six.string_types):
             species_names = set([species_names])
         else:
             species_names = set(species_names)
@@ -286,8 +286,8 @@ class TreePattern(Tree):
             constraint = '__target_node.name == "%s"' %self.name
 
         syntax = self.syntax
-        # print("syntax is finally", syntax)
-        # print("for the constraint", constraint)
+        #print("syntax is finally", syntax)
+        #print(" constraint is ", constraint)
         try:
             st = eval(constraint, constraint_scope) if constraint else True
             #if isinstance(st, six.string_types):
@@ -333,6 +333,7 @@ class TreePattern(Tree):
           :param maxhits: Number of matches to be searched for.
           :param None maxhits: Pattern search will continue until all matches are found.
         """
+        print("cache is", cache)
         num_hits = 0
         for node in tree.traverse("preorder"):
             if self.match(node, cache):
@@ -346,36 +347,110 @@ def test():
     t = PhyloTree(
         "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
 
-    t.set_species_naming_function(lambda node: node.name.split("_")[0])
-    t.get_descendant_evol_events()
+    #t.set_species_naming_function(lambda node: node.name.split("_")[0])
+    t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
+
+    #t.get_descendant_evol_events()
 
     #Basic usage
-    #pattern = TreePattern("""(' "Chimp" in species(@)', ''); """)
-    #print pattern.match(t)
+    #pattern = TreePattern(""" ' contains_species(@, "Chimp") ' ; """)  # doesn't work
+    pattern = TreePattern("""( 'contains_species(@, ["Chimp", "Human"])'); """)
+    #pattern = TreePattern("""( 'contains_leaves(@, ["Chimp_1", "Human_1"])'); """)
+
+    print pattern.match(t)
 
     #Using cache
     cache = TreePatternCache(t)
     pattern = TreePattern("""('"Chimp" in species(@)', ''); """)
-    print pattern.match(t, cache)
+    #print pattern.match(t, cache)
+    print list(pattern.find_match(t, cache=cache))
 
     #Expanding vocabulary
     class MySyntax(PatternSyntax):
         def my_nice_function(self, node):
-            return node.name == 'Chim'
+            return node.name == 'Chimp_1'
     my_syntax = MySyntax()
+
     pattern = """ ('"Chimp" in species(@)')'my_nice_function(@)'; """
     t_pattern = TreePattern(pattern, syntax=my_syntax)
     #for match in t_pattern.find_match(t, cache):
-    print("match is", t_pattern.find_match(t, cache))
-    pattern1 = """ ('my_nice_function(@)')'"Chimp" in species(@)'; """
+    print("match is", list(t_pattern.find_match(t, cache)))
+
+    pattern1 = """ ('my_nice_function(@)')'"Chimp" in species(@)'; """  # doesn't work
     t_pattern1 = TreePattern(pattern1, syntax=my_syntax)
     for match1 in t_pattern1.find_match(t, cache):
-        print("match1 is", match1)
+        print("match1 is", list(match1))
+
     pattern2 = """ 'my_nice_function(@)'; """
     t_pattern2 = TreePattern(pattern2, syntax=my_syntax)
     for match2 in t_pattern2.find_match(t, cache):
         print("match2 is", list(t_pattern2.find_match(t, cache)))
 
+def tutorial2():
+
+    #
+    #                /-Human_1
+    #             /-|
+    #            |   \-Chimp_1
+    #         /D-|
+    #        |   |   /-Human_2
+    #        |    \-|
+    #        |      |    /-Chimp_2
+    #        |       \D-|
+    #     /D-|           \-Chimp_3
+    #    |   |
+    #    |   |       /-Fish_1
+    #    |   |   /D-|
+    #    |   |  |   |   /-Human_3
+    # -D-|    \-|    \-|
+    #    |      |       \-Fish_3
+    #    |      |
+    #    |       \-Yeast_2
+    #    |
+    #     \-Yeast_1
+
+
+    t = PhyloTree(
+        "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);", format=8)
+    t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
+    t.get_descendant_evol_events()
+
+    #basic usage
+    # Detect two consecutive nodes with duplications
+    pattern = TreePattern("""('n_duplications(@) > 0')'n_duplications(@) > 0 '; """)
+    result_list_nocache = list(pattern.find_match(t, maxhits=None))
+    print(result_list_nocache)
+
+
+    # Using Cache
+    cache = TreePatternCache(t)
+    # Detect two consecutive nodes with duplications
+    #pattern = TreePattern("""('n_duplications(@) > 0')'n_duplications(@) > 0 '; """)
+    result_list_cache = list(pattern.find_match(t, maxhits=None, cache=cache))
+    print(result_list_cache)
+
+    '''
+    # Determine whether the tree contains the species "Chimp"
+    pattern = TreePattern(""" ' "Chimp" in species(@) '; """)
+    print pattern.match(t)
+
+    # Determine whether the tree contains the species "Chimp"
+    pattern = TreePattern(""" ' "Chimp" in species(@) '; """)
+    print pattern.match(t, cache)
+
+    # Expanding vocabulary
+    class MySyntax(PatternSyntax):
+        def my_nice_function(self, node):
+            return node.name == 'Chimp_1' or node.name == 'Chimp_2'
+
+    my_syntax = MySyntax()
+
+    pattern = """ 'my_nice_function(@)'; """
+    t_pattern = TreePattern(pattern, syntax=my_syntax)
+    for match in t_pattern.find_match(t, cache):
+        print(list(match))
+    '''
 
 if __name__ == "__main__":
-    test()
+    #test()
+    tutorial2()

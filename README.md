@@ -1,27 +1,53 @@
-# TreeMatcher: A new tool for creating regular-expression-like queries on trees
+# TreeMatcher: A new tool for creating Python-based queries on trees
 
-In mathematics, a standard way of representing graphical trees with edge lengths is the Newick format which uses a specific syntax (such as parentheses and commas). The TreeMatcher module defines a tree pattern by extending the Newick format to include rules and filters with a regular-expression-like vocabulary. These patterns are then searched for using a tree traversal algorithm.
+### Program Description
 
-### Syntax
+In mathematics, a standard way of representing graphical trees with edge lengths is the Newick format. The TreeMatcher module defines a tree pattern by extending the Newick format to include rules and filters with a regular-expression-like vocabulary. These patterns are then searched for using a tree traversal algorithm. A pattern can be written by accessing the attributes and functions available to an ETE Tree (see Tree class), using Python code directly, or through custom functions and syntax.
 
-ETE uses its own formalism to represent phylogenetic trees (see Tree class). A pattern can be written by accessing the attributes and functions available to an ETE Tree, using Python code directly, or through custom functions to use as constrinats. A tree pattern structure is created using the Newick format.
+### How to use treematcher
 
+The simplest way to begin using treematcher is to create a pattern to find the name of a single node. In the following example, a string defines the pattern and a TreePattern instance is created. If an attribute is not specified, it is assumed by default that you are searching for a node name.
 
-The simplest way to write a pattern is to begin with a string surrounded by three double quotes at each end. Use the string to create TreePattern instance. In the simplest case, you want to know something about a single node. If an attribute type is not specified, it is assumed that you are searching for a node name by default.
-
-Example 1: Find a node named "sample_1".
 ```
-pattern1 =' sample_1 ;'	 # begin with a string
+# Find a node named "sample_1"
+pattern1 = """ sample_1 ; """	 # begin with a string
 pattern1 = TreePattern(pattern1)  # create a TreePattern Instance
 
 ```
-Example 2: Find a tree where sample_1 and sample_2 are siblings.
+Now that you know how to search a single node, you may be tempted to access other nodes through constraints like @.children[0].name=="sample_1" and @.children[1].name=="sample_2" but calling a node's descendants in this way restricts the order in which they are considered a match. For example, the equivalent permutation @.children[0].name=="sample_2" and @.children[1].name=="sample_1" would not be returned as a match. Using the Newick format to ensure that both permutations of children are matched.
+
 ```
-pattern2 = ' (sample_1, sample_2) ; '  #  comma is used separate sibling nodes. Solution is the parent node.
-pattern2 = TreePattern(pattern2)  # create the TreePattern Instance
+# Find a tree where sample_1 and sample_2 are siblings.
+pattern1_v2 = TreePattern(' (sample_1, sample_2) ; ')
 ```
 
+Note that the format type is set to 1 as the default which does not allow internal node names. Access other Newick format types using the format argument.
+
+```
+# Find a tree where sample_1 and sample_2 are children of the parent ancestor_a.
+pattern3 = """ (sample_1, sample_2) ancestor_a ; """
+pattern3 = TreePattern(pattern3, format=8)
+```
+
+### To Run
+To run, use the find_match function. By default, find_match will look for every match. If if one match needs to be searched, set maxhits to 1. To know the number of matches, use len().
+
+```
+tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format = 8)
+# find the parent node of the siblings sample_1 and sample_2
+pattern = TreePattern(' (sample_1, sample_2) ; ')
+solution = list(pattern.find_match(tree, None))
+print("The number of solutions are: ", len(solution))
+
+```
+
+See the tutorial at the end of this file for more detailed examples.
+
+##  Examples of common search types
+
+
 A short list of commonly used constraints is given in the following table.
+
 
 Table 1: Examples of common constraints.
 
@@ -43,36 +69,42 @@ Table 1: Examples of common constraints.
 | leaf name                 | * | Pan_troglodytes_1 in @.leaves		                | Pan_troglodytes_1 is descendant leaf name	    | Find the leaf name within a list of leaf names, custom treematcher attribute  |
 *custom functions and attributes do not exist outside of the treematcher class or have different functionality than found elsewhere in ETE.
 
-### Newick format to access the structure of a tree
-Create a tree structure using Newick format. Replace the name of each node you want to search for with a constraint.
+To differentiate the parentheses of a set, tuple, or function in your pattern as separate from the parentheses of the Newick format, use quoted node names.
 
 
-Example 3: Find a tree where sample_1 and sample_2 are children of the parent ancestor_a.  Note that the format type is set to 1 as the default which does not allow internal node names. Access other Newick format types by setting the format argument.
-```
-pattern3 = """ (sample_1, sample_2) ancestor_a ; """
-pattern3 = TreePattern(pattern3, format=8)
-```
+## Advanced Topics
 
-### To Run
-To run, use the find_match function.  By default, find_match will look for one match. If you want to find every match on a tree, set the maximum number of hits to None. If you only want to know the number of matches, use len().
+optimization and cacheing
 
-
-Example 4: For the following tree, find the parent node of the siblings sample_1 and sample_2.
-
-tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format = 8)
+Virtually any attribute available in ETE can be searched for on a tree, however, the larger the structure the more complex the pattern is, the more computationally intensive the search will be. Large Newick trees with complex conditional statements calling functions that require several tree traversals is not recommended.
+Instead, break complex patterns into smaller searches. If conditional statements are used, the part of the search that you think will be faster should come first. For example, matching a node name  if faster than finding the distance to all other nodes or finding a name in a lineage. If many tree traversals are required, using a cache is suggested.
 
 ```
-solution = list(pattern2.find_match(tree, None))
+#cache example
+t = PhyloTree(
+    "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);")
+
+t.set_species_naming_function(lambda node: node.name.split("_")[0])
+t.get_descendant_evol_events()
+
+#Basic usage
+pattern = TreePattern("""(' "Chimp" in species(@)', ''); """)
+print pattern.match(t)
+
+#Using cache
+cache = TreePatternCache(t)
+pattern = TreePattern("""('"Chimp" in species(@)', ''); """)
+print pattern.match(t, cache)
+
+
+
+
 ```
 
-Example 5: Find the total number of patterns that match
-```
-solution = len(list(pattern2.find_match(tree, None, maxhits=None)))
-```
 
+Custom Functions
+Using your own custom functions and syntax is made possible with treematcher. You can alter the function names using a dictionary. For example, suppose you have written two functions: num_of_species and num_of_leaves. Access these functions as follows.
 
-### Custom Functions
-Write your own functions and provide them as local variables to the treematcher program. To differentiate the parentheses of a set, tuple, or function in your pattern as separate from the parentheses of the Newick format, use quoted node names. You can alter the function names using a dictionary. For example, suppose you have written two functions: num_of_species and num_of_leaves. Access these functions as follows.
 
 ```
 pattern4 = """ 'sn(@, 2) and ln(@,2)' ; """
@@ -83,6 +115,7 @@ pattern4 = TreePattern(pattern4, format=8, quoted_node_names=True,
 
 solution = pattern4.find_match(tree, None, maxhits=None)
 print(list(solution))
+
 ```
 
 ### Command line tool
@@ -98,54 +131,37 @@ print(list(solution))
 ete3 treematcher --pattern "sample_1, sample_2;" --pattern-format 8 --tree-format 8 --trees "sample_3,(sample_1,sample_2)sample_0;" --quoted-node-names
 
 
-Now, let's combine the examples together into a short tutorial.
-
-Tutorial 1: Introduction to patterns using treematcher.
+### Tutorial 1: Introduction to patterns using treematcher.
 
 ```
-
     tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format=8)
     print tree
-    border= "\n"+ "#" * 110 + "\n"
+
+    border = "\n" + "#" * 110 + "\n"
 
     #######################################################
     print(border)
-    print("Find a node named sample_1.")
+    print("Find all nodes named sample_1.")
     print(border)
     #######################################################
 
+    # search for the name attribute.
+    # The name is quoted but the node is not so quoted_node_names is set to False.
     pattern1_v1 = """ @.name=="sample_1" ; """
-    pattern1_v1 = TreePattern(pattern1_v1)  # create a TreePattern Instance
+    pattern1_v1 = TreePattern(pattern1_v1, quoted_node_names=False)  # create a TreePattern Instance
     solution = pattern1_v1.find_match(tree, None)
-    print(pattern1_v1, list(solution))
+    print("version 1", list(solution))
 
+    # When no attribute is given, the node name is assumed
     pattern1_v2 = """ sample_1 ; """
-    pattern1_v2 = TreePattern(pattern1_v2)  # create a TreePattern Instance
-    #print("Pattern 1 version 2 is", pattern1_v2)
+    pattern1_v2 = TreePattern(pattern1_v2, quoted_node_names=False)  # create a TreePattern Instance
+    # print("Pattern 1 version 2 is", pattern1_v2)
     solution = pattern1_v2.find_match(tree, None)
-    print(pattern1_v2, list(solution))
-
-    pattern1_v3 = """ "sample_1" ; """  # Note that single quotes on the inside will not work here
-    pattern1_v3 = TreePattern(pattern1_v3, quoted_node_names=True)  # create a TreePattern Instance
-    #print("Pattern 1 version 3 is", pattern1_v3)
-    solution = pattern1_v3.find_match(tree, None)
-    print(pattern1_v3, list(solution))
-
-    pattern1_v4 = ' "sample_1" ; '
-    pattern1_v4 = TreePattern(pattern1_v4, quoted_node_names=True)  # create a TreePattern Instance
-    #print("Pattern 1 version 4 is", pattern1_v4)
-    solution = pattern1_v4.find_match(tree, None)
-    print(pattern1_v4, list(solution))
-
-    # List all pattern 1 matches
-    solution = list(pattern1_v2.find_match(tree, None, maxhits=None))
-    print("All solutions for pattern 1 are:")
-    print(solution)
+    print("version 2", list(solution))
 
     # Find the total number of pattern2 matches
-    solution = len(list(pattern1_v2.find_match(tree, None, maxhits=None)))
-    print("The number of solutions for pattern 1 are:")
-    print(solution)
+    solution = len(list(pattern1_v2.find_match(tree, None)))
+    print("The number of solutions for pattern 1 is:", solution)
 
     #######################################################
     print(border)
@@ -153,43 +169,26 @@ Tutorial 1: Introduction to patterns using treematcher.
     print(border)
     #######################################################
 
-    pattern2_v1 = """ @.children[0].name=="sample_1" and @.children[1].name=="sample_2" ; """  # comma is used separate sibling nodes
+    # When you only need to find if there is a single match, use maxhits=1
+    pattern2_v1 = """ (sample_1, sample_2) ; """  # comma is used separate sibling nodes
     pattern2_v1 = TreePattern(pattern2_v1, quoted_node_names=False)  # create the TreePattern Instance
-    solution = pattern2_v1.find_match(tree, None)
-    print("solution 2 version 1 is", list(solution))
+    solution = pattern2_v1.find_match(tree, maxhits=1)
+    print("solution ", list(solution))
 
-    pattern2_v2 = """ (sample_1, sample_2) ; """  # comma is used separate sibling nodes
-    pattern2_v2 = TreePattern(pattern2_v2, quoted_node_names=False)  # create the TreePattern Instance
-    solution = pattern2_v2.find_match(tree, None)
-    print("solution 2 version 2 is", list(solution))
+    #If you want to know if the match exists at a specific node, use match()
+    solution1 = pattern2_v1.match(tree.children[0])
+    solution2 = pattern2_v1.match(tree.children[1])
+    print("solution 1 is", solution1)
+    print("solution 2 is", solution2)
 
-    pattern2_v3 = """ ("sample_1", "sample_2") ; """  # comma is used separate sibling nodes
-    pattern2_v3 = TreePattern(pattern2_v3, quoted_node_names=True)  # create the TreePattern Instance
-    solution = pattern2_v3.find_match(tree, None)
-    print("solution 2 version 3 is", list(solution))
-
-    pattern2_v4 = """ ('sample_1', 'sample_2') ; """  # comma is used separate sibling nodes
-    pattern2_v4 = TreePattern(pattern2_v4, quoted_node_names=True)  # create the TreePattern Instance
-    solution = pattern2_v4.find_match(tree, None)
-    print("solution 2 version 4 is", list(solution))
-
-    # List all pattern 2 matches
-    solution = list(pattern2_v2.find_match(tree, None, maxhits=None))
-    print("All solutions for pattern 2 are:")
-    print(solution)
-
-    # Find the total number of pattern2 matches
-    solution = len(list(pattern2_v2.find_match(tree, None, maxhits=None)))
-    print("The number of solutions for pattern 2 are:")
-    print(solution)
-
-
+    # If you want all the matches, use maxhits value of None.
+    all_solutions = list(pattern2_v1.find_match(tree, None))
+    print("All solutions for pattern 2 are:", all_solutions)
 
 ```
-The results of the Tutorial 1 are as follows:
+### The results of the Tutorial 1 are as follows:
 
-```
-      /-sample_1
+`      /-sample_1
    /-|
   |   \-sample_2
 --|
@@ -199,16 +198,22 @@ The results of the Tutorial 1 are as follows:
 
 ##############################################################################################################
 
-Find a node named sample_1.
+Find all nodes named sample_1.
 
 ##############################################################################################################
 
-(Tree node '@.name=="sample_1"' (0x10b4e081), [Tree node 'sample_1' (0x10b4e0a9)])
-(Tree node 'sample_1' (0x10b4e0b5), [Tree node 'sample_1' (0x10b4e0a9)])
-(Tree node '"sample_1"' (0x10b4e0ad), [])
-(Tree node '"sample_1"' (0x10b4e0bd), [])
-All solutions for pattern 1 are:
-[Tree node 'sample_1' (0x10b4e0a9), Tree node 'sample_1' (0x10b4e0d5)]
-The number of solutions for pattern 1 are:
-2
+('version 1', [Tree node 'sample_1' (0x10ac1365), Tree node 'sample_1' (0x10ac3315)])
+('version 2', [Tree node 'sample_1' (0x10ac1365), Tree node 'sample_1' (0x10ac3315)])
+('The number of solutions for pattern 1 is:', 2)
+
+##############################################################################################################
+
+Find a tree where sample_1 and sample_2 are siblings.
+
+##############################################################################################################
+
+('solution ', [Tree node 'ancestor_a' (0x108f09c9)])
+('solution 1 is', True)
+('solution 2 is', True)
+('All solutions for pattern 2 are:', [Tree node 'ancestor_a' (0x108f09c9), Tree node 'ancestor_b' (0x1091024d)])
 ```
