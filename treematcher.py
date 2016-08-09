@@ -333,7 +333,7 @@ class TreePattern(Tree):
           :param maxhits: Number of matches to be searched for.
           :param None maxhits: Pattern search will continue until all matches are found.
         """
-        print("cache is", cache)
+        #print("cache is", cache)
         num_hits = 0
         for node in tree.traverse("preorder"):
             if self.match(node, cache):
@@ -388,6 +388,7 @@ def test():
 
 def tutorial2():
 
+    import time
     #
     #                /-Human_1
     #             /-|
@@ -414,34 +415,55 @@ def tutorial2():
         "((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);", format=8)
     t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
     t.get_descendant_evol_events()
-
+    cache = TreePatternCache(t)
+    '''
     #basic usage
-    # Detect two consecutive nodes with duplications
-    pattern = TreePattern("""('n_duplications(@) > 0')'n_duplications(@) > 0 '; """)
-    result_list_nocache = list(pattern.find_match(t, maxhits=None))
-    print(result_list_nocache)
+    start_time = time.time()
+
+    for i in range(0, 1000):
+        # Determine whether the tree contains the species "Chimp"
+        pattern = TreePattern(""" ' "Chimp" in species(@) and "Human_1" in leaves(@)'; """)
+        list(pattern.find_match(t, maxhits=None))
+
+        # Detect two consecutive nodes with duplications
+        pattern = TreePattern("""  (('n_duplications(@) > 0')'n_duplications(@) > 0 ')'contains_species(@, ["Chimp", "Human"])' ; """)
+        list(pattern.find_match(t, maxhits=None))
+
+
+    end_time = time.time()
+
+    total_time= (end_time - start_time) / 1000.00
+
+    print("time without cache", total_time)
 
 
     # Using Cache
-    cache = TreePatternCache(t)
-    # Detect two consecutive nodes with duplications
-    #pattern = TreePattern("""('n_duplications(@) > 0')'n_duplications(@) > 0 '; """)
-    result_list_cache = list(pattern.find_match(t, maxhits=None, cache=cache))
-    print(result_list_cache)
+    start_time_cache = time.time()
+
+    for i in range(0, 1000):
+        # Determine whether the tree contains the species "Chimp"
+        pattern = TreePattern(""" ' "Chimp" in species(@) and "Human_1" in leaves(@)'; """)
+        # pattern = TreePattern("""( 'contains_leaves(@, ["Chimp_1", "Human_1"])'); """)
+
+        list(pattern.find_match(t, maxhits=None))
+
+        # Detect two consecutive nodes with duplications
+        pattern = TreePattern(
+            """  (('n_duplications(@) > 0')'n_duplications(@) > 0 ')'contains_species(@, ["Chimp", "Human"])' ; """)
+        list(pattern.find_match(t, maxhits=None))
+
+    end_time_cache = time.time()
+
+    total_time_cache = (end_time_cache - start_time_cache) / 1000.00
+
+    print("time with cache", total_time_cache)
 
     '''
-    # Determine whether the tree contains the species "Chimp"
-    pattern = TreePattern(""" ' "Chimp" in species(@) '; """)
-    print pattern.match(t)
-
-    # Determine whether the tree contains the species "Chimp"
-    pattern = TreePattern(""" ' "Chimp" in species(@) '; """)
-    print pattern.match(t, cache)
 
     # Expanding vocabulary
     class MySyntax(PatternSyntax):
         def my_nice_function(self, node):
-            return node.name == 'Chimp_1' or node.name == 'Chimp_2'
+            return node.species == 'Chimp'
 
     my_syntax = MySyntax()
 
@@ -449,7 +471,7 @@ def tutorial2():
     t_pattern = TreePattern(pattern, syntax=my_syntax)
     for match in t_pattern.find_match(t, cache):
         print(list(match))
-    '''
+
 
 if __name__ == "__main__":
     #test()
