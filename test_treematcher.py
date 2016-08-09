@@ -223,12 +223,10 @@ class Test_TreePattern(unittest.TestCase):
         pattern1_match = list(pattern1.find_match(t, maxhits=None))
         pattern2_match = list(pattern2.find_match(t, maxhits=None))
 
-        self.assertEqual(len(pattern0_match), 3)
-        self.assertEqual(pattern0_match, pattern2_match + [root.children[0].children[0]])
+        self.assertEqual(len(pattern0_match), 5)
 
         self.assertEqual(len(pattern1_match), 4)
         self.assertEqual(pattern1_match[0], root)
-        self.assertEqual(pattern1_match, pattern0_match + [root.children[0].children[0].children[1]])
 
         self.assertEqual(len(pattern2_match), 2)
         self.assertEqual(pattern2_match[0], root)
