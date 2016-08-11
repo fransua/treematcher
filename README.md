@@ -36,20 +36,23 @@ pattern3 = TreePattern(pattern3, format=8)
 In order to differentiate the parentheses of a function call from the parentheses defining Newick structure, quoted node names are used. The quotes surrounding each node will be removed and the contents inside will be processed as python code. If no quotes are present, as in the previous examples, all parenthesis are assumed to be part of the Newick structure. In order to ensure that the pattern is being processed correctly, set the quoted_node_names to False when not quoting node names. You can set quoted_node_names to True when they are used but this is assumed by default. In order to access a method on a node, use the @ symbol to represent the node.
 
 ```
-# pattern tree where sample_1 and sample_2 are siblings.
+# Find a tree where sample_1 and sample_2 are siblings.
 pattern1 = TreePattern(' (sample_1, sample_2) ; ', quoted_node_names=False)
-# pattern tree where sample_2 and another leaf are siblings.
+
+# Find a tree where sample_2 and another leaf are siblings where a leaf is determined by number of children.
 pattern2 = TreePattern(""" ('len(@.children)==0', 'sample_2') ; """, quoted_node_names=True)
-# pattern tree where sample_1 and another leaf are siblings.
+
+# pattern tree where sample_1 and another leaf are siblings by accessing the the is_leaf method.
 pattern3 = TreePattern(""" ('sample_1', '@.is_leaf()') ; """, quoted_node_names=True)
 ```
 
 ### To Run
-To run, use the find_match function. By default, find_match will look for every match. If one match needs to be searched, set maxhits to 1. To know the number of matches, use len().
+To run, use the find_match() function. By default, find_match will look for one match. If every match needs to be returned, set maxhits to None. To finr the number of matches returned, use len().
 
 ```
 tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format = 8)
-# find the parent node of the siblings sample_1 and sample_2
+
+# Find the parent node of the siblings sample_1 and sample_2
 pattern = TreePattern(' (sample_1, sample_2) ; ', quoted_node_names=False)
 solution = list(pattern.find_match(tree, None))
 print("The number of solutions are: ", len(solution))
@@ -58,7 +61,7 @@ print("The number of solutions are: ", len(solution))
 
 The following tutorial shows the previous examples in more detail.
 
-### Tutorial 1: Introduction to patterns using treematcher.
+### Tutorial 1: Introduction to patterns using TreeMatcher.
 
 ```
     tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format=8)
@@ -155,7 +158,7 @@ Table 1: Examples of common constraints.
 |  type                     |custom|  syntax example       						    | example meaning       				        |  Comments																        |
 | --------------------------|:-:|:-------------------------------------------------:|:---------------------------------------------:|:-----------------------------------------------------------------------------:|
 | node                      |   | @	            						            |a  node, default for nodes left blank	        | Use @.attribute to access attribute, function(@) to access function           |
-| node name                 |   | node_name, "node_name", or @.name=="node_name"	| equivalent to @.name == "sample1" 	        | Looking for multiple names, use list: @.name in ("sample1","sample2")         |
+| node name                 |   | node_name, "node_name", or @.name=="node_name"	| when attribute not specified, name is assumed | Looking for multiple names, use list: @.name in ("sample1","sample2")         |
 | distance                  |   | @.dist >= 0.5     					            | branch length no less than 0.5		        | Use any of the following: <, <=, ==, >=, !=								    |
 | support                   |   | @.support > 0.9	            		            | Has a support value greater than 0.90	        | 																		        |
 | species                   |   | @.species=="Homo sapiens"	    		            | Homo sapiens is species of node		        | See set_species_naming_function()	for details							        |
