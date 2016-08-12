@@ -344,8 +344,8 @@ class TreePattern(Tree):
 
 
 
-def test():
-    pattern = """ ((((correctly)print)does_not)This);"""
+def test1():
+    pattern = """ ((((d)c)b)a);"""
     tp = TreePattern(pattern, format=1, quoted_node_names=False)
     print tp
 
@@ -385,145 +385,7 @@ def test():
     print("time with cache", total_time_cache)
 
 
-def Bio_Example():
-    """
-     The trees used in the following examples were taken from
-     Morgan, Claire C., Christopher J. Creevey, and Mary J. O'Connell.
-     Mitochondrial data are not suitable for resolving placental mammal phylogeny.
-     Mammalian Genome 25.11-12 (2014): 636-647.
-    """
-
-    from ete3 import NCBITaxa
-    ncbi = NCBITaxa()
-
-    with open("tree_examples.txt", 'r') as fh:
-        tree_dict = ast.literal_eval(fh.read())  # read in example trees
-
-    #########################################################################
-    # Example 1
-    # Suppose we want to double check that all of the trees listed under "Insectivora"
-    # have leaves which are classified in Insectivora according to the NCBI Taxonomy database.
-    # We expect one outgroup, Balaena_mysticetus, and we want to check if it is
-    # placed correctly in the tree.
-    #########################################################################
-
-    Insectivora_trees = tree_dict["Insectivora"]  # Access Insectivora dictionary of trees
-    Insectivora_trees = [PhyloTree(tree) for tree in Insectivora_trees]  # creates tree pattern instances
-
-    # Find all leaves in tree that are not Insectivora
-    pattern1 = TreePattern(""" '  @.is_leaf() and "Insectivora" not in @.named_lineage ';""")
-
-
-    # Check that outgroup is first to diverge from root
-    pattern2 = TreePattern("""  ( 'Balaena_mysticetus' ) ' @.is_root() ';""")
-
-    count=1
-
-    for tree in Insectivora_trees:
-        # set species
-        tree.set_species_naming_function(
-            lambda n: (ncbi.get_name_translator([n.name.replace("_", " ")])).get(n.name.replace("_", " "))[
-                0] if "_" in n.name else '')
-
-        # access taxonomy information
-        tree.annotate_ncbi_taxa()
-
-        # Find non-Insectivora, check if outgroup, look at placement
-        for match in list(pattern1.find_match(tree, maxhits=None)):
-            if match.name=="Balaena_mysticetus":  # outgroup
-                print(len(list(pattern2.find_match(tree))) == 1)  # True if outgroup is child of root
-            else:
-                print("Not Insectivora: ", match.name, "tree number: ", count)
-        count+=1
-
-    # All trees return the correct outgroup
-    # but only the first tree has the outgroup diverging directly from the root
-
-    #########################################################################
-    # Example 2
-    # Suppose a different arrangement of orders was published in a new study, such as
-    # -- /-Insectivora/-Cetartiodactyla/-Perissodactyla/-Carnivora
-    # and we want to check if this arrangement is present within the trees
-    # listed under Laurasiatheria
-    #########################################################################
-
-    Laurasaitheria_trees = tree_dict["Laurasaitheria"]
-    Laurasaitheria_trees = [PhyloTree(tree) for tree in Laurasaitheria_trees]
-    #12453 ==> 8
-    pattern1 = TreePattern(""" '  @.sci_name == "Insectivora" ';""")
-    pattern2 = TreePattern(""" '  @.sci_name == "Chiroptera" ';""")
-    pattern3 = TreePattern(""" '  @.sci_name == "Cetartiodactyla" ';""")
-    pattern4 = TreePattern(""" '  @.sci_name == "Perissodactyla" ';""")
-    pattern5 = TreePattern(""" '  @.sci_name == "Carnivora" ';""")
-
-    count = 1
-    for tree in Laurasaitheria_trees:
-        # set species attribute
-        tree.set_species_naming_function(
-            lambda n: (ncbi.get_name_translator([n.name.replace("_", " ")])).get(n.name.replace("_", " "))[
-                0] if "_" in n.name else '')
-
-        # access taxonomy information from NCBI database
-        tree.annotate_ncbi_taxa()
-
-        match1 = list(pattern1.find_match(tree, maxhits=1, target_traversal="levelorder"))
-        match2 = list(pattern2.find_match(tree, maxhits=1, target_traversal="levelorder"))
-        match3 = list(pattern3.find_match(tree, maxhits=1,target_traversal="levelorder"))
-        match4 = list(pattern4.find_match(tree, maxhits=1, target_traversal="levelorder"))
-        match5 = list(pattern5.find_match(tree, maxhits=1, target_traversal="levelorder"))
-
-        results = len(match1) + len(match2) + len(match3) + len(match4) + len(match5)
-
-        if results>=2:
-            try:
-                if match1:  # if Insectivora exists in tree, make it the new subtree to search
-                    #print "match 1 found"
-                    tree = match1[0].up
-
-                if match2:  # if Cetartiodactyla exists in tree
-                    # check that it exists in the current subtree
-                    #print "match 2 found"
-                    subtree = list(pattern2.find_match(tree, maxhits=1, target_traversal="levelorder"))[0]
-                    if subtree != tree:
-                        tree = subtree.up
-                    else:
-                        raise IndexError
-
-                if match3:  # if Perissodactyla  exists in tree
-                    # check that it exists in the current subtree
-                    #print "match 3 found"
-                    subtree = list(pattern3.find_match(tree, maxhits=1, target_traversal="levelorder"))[0]
-                    if subtree!=tree:
-                        tree = subtree.up
-                    else:
-                        raise IndexError
-
-                if match4: # if carnivora exists, check that it exists in the subtree
-                    #print "match 4 found"
-                    subtree = list(pattern4.find_match(tree, maxhits=1, target_traversal="levelorder"))[0]
-                    if subtree != tree:
-                        tree = subtree.up
-                    else:
-                        raise IndexError
-
-                if match5:  # if carnivora exists, check that it exists in the subtree
-                    #print "match 5 found"
-                    subtree = list(pattern4.find_match(tree, maxhits=1, target_traversal="levelorder"))[0]
-                    if subtree == tree:
-                        raise IndexError
-
-                print(str(results), " orders that are present occur in the correct arrangement for tree ", str(count))
-
-            except IndexError:
-                print("Incorrect order for tree", count)  # no solution for order on subtree
-        else:
-            print("Only one order found for", count)
-        count+=1
-
-    # Only 2 trees contain all groups, but they are not in the arrangement we are looking for
-    # Two trees have the correct arrangement, 4 and 13 for the orders that are present
-
 if __name__ == "__main__":
-    #test()
-    Bio_Example()
+    test()
+
 

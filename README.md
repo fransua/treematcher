@@ -233,13 +233,15 @@ for match in t_pattern.find_match(t, cache):
 ```
 
 ### Command line tool
-|  argument       						| meaning       						|
-| ----------------------------------	|:-------------------------------------:|
-| --pattern								| string of  pattern in Newick format	|
-| --pattern-format						| format for patter, default = 1		|
-| --trees								| list of trees to search				|
-| --tree-format							| format for trees, default = 1			|									|
-| --quoted-node-names 					| default = False						|
+|  argument       						| meaning       						                            |
+| ----------------------------------	|:-------------------------------------:                            |
+| --pattern								| string pattern in Newick format                                	|
+| --trees								| list of trees to search			                            	|
+| --tree-format							| format for trees, default = 1	                            		|
+| --quoted-node-names 					| default = False					                            	|
+| --cache            					| default = None					                            	|
+| --maxhits          					| number of matches returned, default = 1   						|
+
 
 
 ete3 treematcher --pattern "sample_1, sample_2;" --pattern-format 8 --tree-format 8 --trees "sample_3,(sample_1,sample_2)sample_0;" --quoted-node-names
