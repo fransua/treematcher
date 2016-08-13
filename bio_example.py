@@ -34,7 +34,6 @@ Insectivora_trees = [PhyloTree(tree) for tree in Insectivora_trees]  # creates t
 # Find all leaves in tree that are not Insectivora
 pattern1 = TreePattern(""" '  @.is_leaf() and "Insectivora" not in @.named_lineage ';""")
 
-
 # Check that outgroup is first to diverge from root
 pattern2 = TreePattern("""  ( 'Balaena_mysticetus' ) ' @.is_root() ';""")
 
@@ -63,11 +62,11 @@ for tree in Insectivora_trees:
 # All trees return the correct outgroup
 # but only the first tree has the outgroup diverging directly from the root
 
-
 #########################################################################
 # Example 2
 # Suppose a different arrangement of orders was published in a new study, such as
-# -- /-Insectivora/-Chiroptera/-Cetartiodactyla/-Perissodactyla/-Carnivora
+# -- /-Insectivora/-Chiroptera/-Cetartiodactyla/-Perissodactyla/-
+
 # and we want to check if this arrangement is present within the trees
 # listed under Laurasiatheria
 print(border)
@@ -78,13 +77,12 @@ print(border)
 
 Laurasaitheria_trees = tree_dict["Laurasaitheria"]
 Laurasaitheria_trees = [PhyloTree(tree) for tree in Laurasaitheria_trees]
-#12453
+
 pattern1 = TreePattern(""" '  @.sci_name == "Insectivora" ';""")
 pattern2 = TreePattern(""" '  @.sci_name == "Chiroptera" ';""")
 pattern3 = TreePattern(""" '  @.sci_name == "Cetartiodactyla" ';""")
 pattern4 = TreePattern(""" '  @.sci_name == "Perissodactyla" ';""")
 pattern5 = TreePattern(""" '  @.sci_name == "Carnivora" ';""")
-
 count = 1
 for tree in Laurasaitheria_trees:
     # set species attribute
@@ -106,12 +104,10 @@ for tree in Laurasaitheria_trees:
     if results>=2:
         try:
             if match1:  # if Insectivora exists in tree, make it the new subtree to search
-                #print "match 1 found"
                 tree = match1[0].up
 
             if match2:  # if Cetartiodactyla exists in tree
                 # check that it exists in the current subtree
-                #print "match 2 found"
                 subtree = list(pattern2.find_match(tree, maxhits=1, target_traversal="levelorder"))[0]
                 if subtree != tree:
                     tree = subtree.up
@@ -120,7 +116,6 @@ for tree in Laurasaitheria_trees:
 
             if match3:  # if Perissodactyla  exists in tree
                 # check that it exists in the current subtree
-                #print "match 3 found"
                 subtree = list(pattern3.find_match(tree, maxhits=1, target_traversal="levelorder"))[0]
                 if subtree!=tree:
                     tree = subtree.up
@@ -128,7 +123,6 @@ for tree in Laurasaitheria_trees:
                     raise IndexError
 
             if match4: # if carnivora exists, check that it exists in the subtree
-                #print "match 4 found"
                 subtree = list(pattern4.find_match(tree, maxhits=1, target_traversal="levelorder"))[0]
                 if subtree != tree:
                     tree = subtree.up
@@ -136,7 +130,6 @@ for tree in Laurasaitheria_trees:
                     raise IndexError
 
             if match5:  # if carnivora exists, check that it exists in the subtree
-                #print "match 5 found"
                 subtree = list(pattern4.find_match(tree, maxhits=1, target_traversal="levelorder"))[0]
                 if subtree == tree:
                     raise IndexError
@@ -148,6 +141,5 @@ for tree in Laurasaitheria_trees:
     else:
         print("Only one Order found in tree {}".format(count))
     count+=1
-
-# Only 3 trees contain 4 groups, but they are not in the arrangement we are looking for
+# None of the trees contain all of the groups.
 # Trees 2,3,10 and 12 have the correct for the orders that are present
