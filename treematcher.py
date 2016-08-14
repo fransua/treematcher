@@ -7,11 +7,9 @@ import ast
 import six
 from ete3 import PhyloTree, Tree, NCBITaxa
 
-
-
-
 # internal modules
 # ...
+
 
 class TreePatternCache(object):
     def __init__(self, tree):
@@ -50,6 +48,7 @@ class TreePatternCache(object):
     def get_descendants(self, node):
         return self.all_node_cache[node]
 
+
 class _FakeCache(object):
     """TreePattern cache emulator."""
     def __init__(self):
@@ -72,6 +71,7 @@ class _FakeCache(object):
 
     def get_descendants(self, node):
         return node.get_descendants()
+
 
 class PatternSyntax(object):
     def __init__(self):
@@ -201,20 +201,24 @@ class PatternSyntax(object):
 
         return constraint
 
+
 class TreePattern(Tree):
     def __str__(self):
         return self.get_ascii(show_internal=True, attributes=["name"])
-
 
     def __init__(self, newick=None, format=1, dist=None, support=None,
                  name=None, quoted_node_names=True, syntax=None):
         """ Creates a tree pattern instance that can be used to search within
         other trees.
 
-        :param newick: Path to the file containing the tree or, alternatively, the text string containing the same information.
-        :param format: subnewick format that is a number between 0 (flexible) and 9 (leaf name only), or 100 (topology only).
-        :param quoted_node_names: Set to True if node names are quoted with stings, otherwise False.
-        :syntax: Syntax controller class containing functions to use as constrinats within the pattern.
+        :param newick: Path to the file containing the tree or, alternatively,
+            the text string containing the same information.
+        :param format: subnewick format that is a number between 0 (flexible)
+            and 9 (leaf name only), or 100 (topology only).
+        :param quoted_node_names: Set to True if node names are quoted with
+            stings, otherwise False.
+        :syntax: Syntax controller class containing functions to use as
+            constraints within the pattern.
         """
         # Load the pattern string as a normal ETE tree, where node names are
         # python expressions
@@ -225,7 +229,7 @@ class TreePattern(Tree):
 
     # FUNCTIONS EXPOSED TO USERS START HERE
 
-    def match(self, node, cache=None, cascade_search=False):
+    def match(self, node, cache=None):
         """
         Check all constraints interactively on the target node.
 
@@ -239,44 +243,52 @@ class TreePattern(Tree):
         self.syntax.cache = cache
         # does the target node match the root node of the pattern?
         status = self.is_local_match(node, cache)
-        print("matching target node {} to pattern node {}?".format(node.name, self.name))
+        #print("Matching target node {} to pattern node {}?".format(node.name, self.name))
 
         # if so, continues evaluating children pattern nodes against target node
         # children
-        if status and self.children:
-            print("Yes")
-            if len(node.children) >= len(self.children):
-                # If pattern node expects children nodes, tries to find a
-                # combination of target node children that match the pattern
-                for candidate in permutations(node.children):
-                    sub_status = True
-                    for i in range(len(self.children)):
-                        st, self = self.children[i].match(candidate[i], cache)
-                        print("status is {}".format(st))
+        matched_nodes = []
+        if status:
+            if self.name != '*':
+                matched_nodes += [node]
+            if self.children:
 
-                        if st is not None:      # check when st returns None
-                            sub_status &= st
-                    status = sub_status
-                    if status:
-                        break
-            else:
+                # print("Now checking Children")
+                if len(node.children) >= len(self.children):
+                    # If pattern node expects children nodes, tries to find a
+                    # combination of target node children that match the pattern
+                    for candidate in permutations(node.children):
+                        sub_status = True
+                        sub_nodes = []
+                        for i in range(len(self.children)):
+                            st, self, sub_sub_nodes = self.children[i].match(candidate[i], cache)
+                            #print("Child status is {}".format(st))
+                            if st is not None:
+                                sub_status &= st
+                            sub_nodes += sub_sub_nodes
 
-                print("target children: {} < pattern children: {}".format(len(node.children),len(self.children) ))
-
-                if self.name =='*':
-                    sub_status = True
-                    for i in range(len(self.children)):
-                        st, self = self.children[i].match(node, cache)
-                        print("child status is {}".format(st))
-                        sub_status &= st
-                    status = sub_status
-
+                        status = sub_status
+                        matched_nodes += sub_nodes
+                        if status:
+                            break
                 else:
-                    status = False
-
+                    #print("Pattern has more children than target")
+                    if self.name == '*':
+                        sub_status = True
+                        sub_nodes = []
+                        for i in range(len(self.children)):
+                            #print("Checking last pattern node")
+                            st, self, sub_sub_nodes = self.children[i].match(node, cache)
+                            #print("Second child status is {}".format(st))
+                            sub_status &= st
+                            sub_nodes += sub_sub_nodes
+                        status = sub_status
+                        matched_nodes += sub_nodes
+                    else:
+                        status = False
 
         self.syntax.cache = None
-        return status, self
+        return status, self, matched_nodes
 
     def is_local_match(self, target_node, cache):
         """ Evaluate if this pattern constraint node matches a target tree node.
@@ -288,7 +300,7 @@ class TreePattern(Tree):
         # stuff referred within the pattern expressions. We use Syntax() as a
         # container of those custom functions and shortcuts.
 
-        constraint_scope = {attr_name:getattr(self.syntax, attr_name)
+        constraint_scope = {attr_name: getattr(self.syntax, attr_name)
                             for attr_name in dir(self.syntax)}
         constraint_scope.update({"__target_node": target_node})
 
@@ -300,34 +312,33 @@ class TreePattern(Tree):
             constraint = self.name.replace('@', '__target_node')
         elif '*' == self.name:
             # star pattern node should match any target node
-            constraint=''
+            constraint = ''
 
         else:
             # if no references to itself, let's assume we search an exact name
             # match (allows using regular newick string as patterns)
-            constraint = '__target_node.name == "%s"' %self.name
+            constraint = '__target_node.name == "%s"' % self.name
 
-        syntax = self.syntax
-        #print("syntax is finally", syntax)
-        #print(" constraint is ", constraint)
         try:
             st = eval(constraint, constraint_scope) if constraint else True
-            #if isinstance(st, six.string_types):
-            #    raise ValueError
-            #else:
-            #    st = bool(st)  # all sets return true
+            # if isinstance(st, six.string_types):
+            #     raise ValueError
+            # else:
+            #     st = bool(st)  # all sets return true
 
         except ValueError:
-            raise ValueError("not a boolean result: %s. Check quoted_node_names." %
-                             (st))
+            #raise ValueError("not a boolean result: %s. Check quoted_node_names." %
+            #                 (st))
+            raise ValueError("not a boolean result: . Check quoted_node_names.")
+
         except (AttributeError, IndexError) as err:
             raise ValueError('Constraint evaluation failed at %s: %s' %
                              (target_node, err))
         except NameError:
             try:
-                #temporary fix. Can not access custom syntax on all nodes. Get it from the root node.
+                # temporary fix. Can not access custom syntax on all nodes. Get it from the root node.
                 root_syntax = self.get_tree_root().syntax
-                #print("root_syntax is ", root_syntax)
+                # print("root_syntax is ", root_syntax)
                 constraint_scope = {attr_name: getattr(root_syntax, attr_name)
                                     for attr_name in dir(root_syntax)}
                 constraint_scope.update({"__target_node": target_node})
@@ -343,10 +354,10 @@ class TreePattern(Tree):
                 raise NameError('Constraint evaluation failed at %s: %s' %
                          (target_node, err))
         else:
-            #self.syntax.__cache = None
+            # self.syntax.__cache = None
             return st
 
-    def find_match(self, tree, maxhits=1, cache=None, target_traversal="preorder"):
+    def find_match(self, tree, maxhits=1, cache=None, target_traversal="preorder", relaxed_match=False):
         """ A pattern search continues until the number of specified matches are
         found.
         :param tree: tree to be searched for a matching pattern.
@@ -358,19 +369,30 @@ class TreePattern(Tree):
         :param nested: for each match returned,
 
         """
-        num_hits = 0
-        for node in tree.traverse(target_traversal):
-            print("traversing target node {}".format(node.name))
-            status, pattern_node = self.match(node, cache)
-            if self != pattern_node:
-                self = pattern_node
-                node = node.up
-            if status:
-                num_hits += 1
-                yield node
+        if relaxed_match == False:
 
-            if maxhits is not None and num_hits >= maxhits:
-                break
+            num_hits = 0
+            for node in tree.traverse(target_traversal):
+                if self.match(node, cache)[0]:
+                    num_hits += 1
+                    yield node
+                if maxhits is not None and num_hits >= maxhits:
+                    break
+
+        else:
+            num_hits = 0
+            matched_node_list = []
+            for node in tree.traverse(target_traversal):
+                status, pattern_node, matched_nodes = self.match(node, cache)
+                matched_node_list += matched_nodes
+                if self != pattern_node:
+                    self = pattern_node
+                if status:
+                    num_hits += 1
+                    yield matched_node_list
+                if maxhits is not None and num_hits >= maxhits:
+                    break
+
 
 
 def test1():
@@ -417,42 +439,43 @@ def test():
 def relaxed_example():
 
     """
-    The code currently works for trees 1 and 2, but returns last node in match... want to return all nodes that match
+    The code currently works for trees 1 and 2, but returns last node in match... want to return all nodes that match?
 
-    Note the pattern is not greedy (matches minimum pattern), so t1 only returns 1 match though there are technically 2
+    Note the pattern is not greedy (matches minimum pattern) and t1 only returns 1 match though there are technically 2
 
-    To Do:
+    Now works for 3 and 4 but these return first node of match
 
-    Make it work for the case where the tree is smaller than the pattern (but not if you exclude stars)
-    Started a special case in the else statement of match, but currently returns None.
 
 
     """
 
-
     t1 = """ (((((( e ) e ) d ) c ) b ) a) ; """
     t1 = PhyloTree(t1, format=8, quoted_node_names=False)
 
-    t2 = """ (((e) c) b) a ; """
+    t2 = """     ((((((((e) e ) d ) c ) a ) e ) c ) a) ; """
     t2 = PhyloTree(t2, format=8, quoted_node_names=False)
 
-    t3 = """ ((e) b) a ; """
+    t3 = """ ( e ) a ; """
     t3 = PhyloTree(t3, format=8, quoted_node_names=False)
 
-    t4 = """ ( e ) a ; """
-    t4 = PhyloTree(t4, format=8, quoted_node_names=False)
+    #pattern = TreePattern(""" ((e) * ) a ;""", quoted_node_names=False)
+    pattern = TreePattern(""" ((((e ) * ) c ) * ) a ;""", quoted_node_names=False)
 
-
-    pattern=TreePattern(""" ((e) * ) a ;""", quoted_node_names=False)
-
+    border = "\n" + "#" * 110 + "\n"
+    print(border)
     print("searching tree 1")
-    print list(pattern.find_match(t1, maxhits=1))
+    print list(pattern.find_match(t1, maxhits=1, relaxed_match=True))
+
+    print(border)
     print("searching tree 2")
-    print list(pattern.find_match(t2, maxhits=1))
+    print list(pattern.find_match(t2, maxhits=1,relaxed_match=True))
+    print(border)
+
+    print(border)
     print("searching tree 3")
-    print list(pattern.find_match(t3, maxhits=1))
-    print("searching tree 4")
-    print list(pattern.find_match(t4, maxhits=1))
+    print list(pattern.find_match(t3, maxhits=1,relaxed_match=True))
+    print(border)
+
 
 
 
