@@ -228,8 +228,44 @@ class TreePattern(Tree):
         self.syntax = syntax if syntax else PatternSyntax()
 
     # FUNCTIONS EXPOSED TO USERS START HERE
-
     def match(self, node, cache=None):
+        """
+        Check all constraints interactively on the target node.
+
+        :param node: A tree (node) to be searched for a given pattern.
+
+        :param local_vars:  Dictionary of TreePattern class variables and
+        functions for constraint evaluation.
+
+        :return: True if a match has been found, otherwise False.
+        """
+        self.syntax.cache = cache
+        # does the target node match the root node of the pattern?
+        status = self.is_local_match(node, cache)
+
+        # if so, continues evaluating children pattern nodes against target node
+        # children
+        if status and self.children:
+
+                # print("Now checking Children")
+                if len(node.children) >= len(self.children):
+                    # If pattern node expects children nodes, tries to find a
+                    # combination of target node children that match the pattern
+                    for candidate in permutations(node.children):
+                        sub_status = True
+                        for i in range(len(self.children)):
+                            st = self.children[i].match(candidate[i], cache)
+                            if st is not None:
+                                sub_status &= st
+                        status = sub_status
+                        if status:
+                            break
+                else:
+                    status = False
+
+        return status
+
+    def relaxed_match(self, node, cache=None):
         """
         Check all constraints interactively on the target node.
 
@@ -373,7 +409,7 @@ class TreePattern(Tree):
 
             num_hits = 0
             for node in tree.traverse(target_traversal):
-                if self.match(node, cache)[0]:
+                if self.match(node, cache):
                     num_hits += 1
                     yield node
                 if maxhits is not None and num_hits >= maxhits:
@@ -383,7 +419,7 @@ class TreePattern(Tree):
             num_hits = 0
             matched_node_list = []
             for node in tree.traverse(target_traversal):
-                status, pattern_node, matched_nodes = self.match(node, cache)
+                status, pattern_node, matched_nodes = self.relaxed_match(node, cache, relaxed=True)
                 matched_node_list += matched_nodes
                 if self != pattern_node:
                     self = pattern_node

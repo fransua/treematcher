@@ -191,7 +191,6 @@ class Test_TreePattern(unittest.TestCase):
         tree = PhyloTree(
             "((((Anolis_carolinensis_1:1, Gallus_gallus_1:1), (Felis_catus_1:1, (Homo_sapiens_1:1, Pan_troglodytes_1:1)primates)primates), ((Danio_rerio_1:1, (Xenopus_laevis_1:1, Anolis_carolinensis_1:1)), Saccharomyces_cerevisiae_2:1)), Saccharomyces_cerevisiae_1:1);",
             format=1)
-        print tree
         root = tree.get_tree_root()
 
         pattern0_match = list(pattern0.find_match(tree, maxhits=None))
@@ -222,6 +221,8 @@ class Test_TreePattern(unittest.TestCase):
         pattern2 = TreePattern(pattern2)
 
         pattern0_match = list(pattern0.find_match(t, maxhits=None))
+        for node in pattern0_match:
+            print node.evoltype
         pattern1_match = list(pattern1.find_match(t, maxhits=None))
         pattern2_match = list(pattern2.find_match(t, maxhits=None))
 
