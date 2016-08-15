@@ -279,7 +279,8 @@ class TreePattern(Tree):
         self.syntax.cache = cache
         # does the target node match the root node of the pattern?
         status = self.is_local_match(node, cache)
-        #print("Matching target node {} to pattern node {}?".format(node.name, self.name))
+        print("Matching target node {} to pattern node {}?".format(node.name, self.name))
+        print("status is {}".format(status))
 
         # if so, continues evaluating children pattern nodes against target node
         # children
@@ -288,8 +289,9 @@ class TreePattern(Tree):
             if self.name != '*':
                 matched_nodes += [node]
             if self.children:
+                print("node children are {}".format(node.children))
 
-                # print("Now checking Children")
+                print("Now checking Children")
                 if len(node.children) >= len(self.children):
                     # If pattern node expects children nodes, tries to find a
                     # combination of target node children that match the pattern
@@ -297,8 +299,8 @@ class TreePattern(Tree):
                         sub_status = True
                         sub_nodes = []
                         for i in range(len(self.children)):
-                            st, self, sub_sub_nodes = self.children[i].match(candidate[i], cache)
-                            #print("Child status is {}".format(st))
+                            st, self, sub_sub_nodes = self.children[i].relaxed_match(candidate[i], cache)
+                            print("Child status is {}".format(st))
                             if st is not None:
                                 sub_status &= st
                             sub_nodes += sub_sub_nodes
@@ -308,14 +310,14 @@ class TreePattern(Tree):
                         if status:
                             break
                 else:
-                    #print("Pattern has more children than target")
+                    print("Pattern has more children than target")
                     if self.name == '*':
                         sub_status = True
                         sub_nodes = []
                         for i in range(len(self.children)):
-                            #print("Checking last pattern node")
-                            st, self, sub_sub_nodes = self.children[i].match(node, cache)
-                            #print("Second child status is {}".format(st))
+                            print("Checking last pattern node")
+                            st, self, sub_sub_nodes = self.children[i].relaxed_match(node, cache)
+                            print("Second child status is {}".format(st))
                             sub_status &= st
                             sub_nodes += sub_sub_nodes
                         status = sub_status
@@ -419,7 +421,7 @@ class TreePattern(Tree):
             num_hits = 0
             matched_node_list = []
             for node in tree.traverse(target_traversal):
-                status, pattern_node, matched_nodes = self.relaxed_match(node, cache, relaxed=True)
+                status, pattern_node, matched_nodes = self.relaxed_match(node, cache)
                 matched_node_list += matched_nodes
                 if self != pattern_node:
                     self = pattern_node
