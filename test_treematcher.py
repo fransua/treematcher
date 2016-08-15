@@ -221,8 +221,6 @@ class Test_TreePattern(unittest.TestCase):
         pattern2 = TreePattern(pattern2)
 
         pattern0_match = list(pattern0.find_match(t, maxhits=None))
-        for node in pattern0_match:
-            print node.evoltype
         pattern1_match = list(pattern1.find_match(t, maxhits=None))
         pattern2_match = list(pattern2.find_match(t, maxhits=None))
 
