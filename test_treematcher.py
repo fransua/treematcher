@@ -61,6 +61,7 @@ class Test_TreePattern(unittest.TestCase):
 
         pan_ancestor = list(pattern1.find_match(tree, maxhits=None))  #note that leaf constraint also returns leaf
 
+
         self.assertEqual(len(pan_ancestor), 6)
         self.assertEqual(pan_ancestor[0].name, 'root')
         self.assertEqual(pan_ancestor[1].name, 'p1')

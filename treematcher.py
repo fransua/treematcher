@@ -315,7 +315,7 @@ class TreePattern(Tree):
                         sub_status = True
                         sub_nodes = []
                         for i in range(len(self.children)):
-                            print("Checking last pattern node")
+                            #print("Checking last pattern node")
                             st, self, sub_sub_nodes = self.children[i].relaxed_match(node, cache)
                             print("Second child status is {}".format(st))
                             sub_status &= st
@@ -423,12 +423,15 @@ class TreePattern(Tree):
             for node in tree.traverse(target_traversal):
                 status, pattern_node, matched_nodes = self.relaxed_match(node, cache)
                 matched_node_list += matched_nodes
+                print("############ matched_nodes are: {}".format(matched_nodes))
                 if self != pattern_node:
                     self = pattern_node
                 if status:
                     num_hits += 1
+                    print("********* matched node list is: {}".format("matched_node_list"))
                     yield matched_node_list
                 if maxhits is not None and num_hits >= maxhits:
+                    matched_node_list = []
                     break
 
 
@@ -447,8 +450,6 @@ def test():
 
     t = PhyloTree(
         "((((((((((((((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), ((((((((((((((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1))), ((((((((((((((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1)), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), ((((((((((((((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), ((((((((((((((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1)), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1));", format=8)
-
-    #print len(t)
 
     t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
     t.get_descendant_evol_events()
@@ -477,44 +478,123 @@ def test():
 def relaxed_example():
 
     """
-    The code currently works for trees 1 and 2, but returns last node in match... want to return all nodes that match?
+    Star symbol:
+    The star symbol (*) allows for zero  (which means a sibling) or more nodes to match.
 
-    Note the pattern is not greedy (matches minimum pattern) and t1 only returns 1 match though there are technically 2
+    Root node:
+    The root node has a special meaning in relaxed patterns.
+    Putting a node at the root of the pattern designates that the node must be the root and
+    is not allowed to have a sibling.
 
-    Now works for 3 and 4 but these return first node of match
+    Examples:
+    (((e ) c ) * ) a ;          # allows c and e to be siblings, but not a and c since a must be a root of the patten
+    ((((e ) * ) c ) * ) a       # allows c and e to be siblings, but not a and c since a must be a root of the patten
+    (((((e ) * ) c ) * ) a)     # allows a and c to be siblings or allows c and e to be siblings.
+    ((((e ) c) * ) a) ;         # allows a and c to be siblings or allows c and e to be siblings.
 
+    The maxhits variable:
+    The code currently returns results for maxhits = 1,  all nodes that match are returned.
 
+    To do :
+    All target siblings that match do not appear in the final list... a match is detected as expected but
+    only one of the siblings that matched will be returned in the final result. Need to fix this.
+
+    The pattern currently does not allow siblings, which will require traversal of the target rather than simply
+    descending to the next child node.
+
+    Note the pattern is not greedy (matches minimum pattern) and returns the closest nodes match using
+    the "preorder" traversal. Allowing the same nodes to match in multiple ways would be costly.
+    Example: ((((e ) e ) c ) a) technically has two matches.
 
     """
 
-    t1 = """ (((((( e ) e ) d ) c ) b ) a) ; """
-    t1 = PhyloTree(t1, format=8, quoted_node_names=False)
+    #t1 = """ ((((((((e)c)a)e)d)c)b)a) ; """ # should match
+    #t1 = PhyloTree(t1, format=8, quoted_node_names=False)
 
-    t2 = """     ((((((((e) e ) d ) c ) a ) e ) c ) a) ; """
-    t2 = PhyloTree(t2, format=8, quoted_node_names=False)
+    #t2 = """     ((((((((e) e ) d ) c ) a ) e ) c ) a) ; """
+    #t2 = PhyloTree(t2, format=8, quoted_node_names=False)
 
-    t3 = """ ( e ) a ; """
-    t3 = PhyloTree(t3, format=8, quoted_node_names=False)
+    #t3 = """ ( e, c ) a ; """  # should match
+    #t3 = PhyloTree(t3, format=8, quoted_node_names=False)
+
+    #t3 = """ (( e, c ) a) ; """  # should match pattern, siblings match
+    #t3 = PhyloTree(t3, format=8, quoted_node_names=False)
+
+    #t4 = """ ( a ,(e , d) c); """  # No match because node a terminates
+    #t4 = PhyloTree(t4, format=8, quoted_node_names=False)
+
+    # should not match pattern 1, since there is no star in pattern for 'a' to designate that 'a' can have a sibling
+    #t5 =  """ ( a , (e , d) c); """
+    #t5 = PhyloTree(t5, format=8, quoted_node_names=False)
+
+    t6 = "( ((a,b)), ((c,d)));"
+    t6 = PhyloTree(t6, format=8, quoted_node_names=False)
+
 
     #pattern = TreePattern(""" ((e) * ) a ;""", quoted_node_names=False)
-    pattern = TreePattern(""" ((((e ) * ) c ) * ) a ;""", quoted_node_names=False)
+    #pattern1 = TreePattern(""" ((((e ) * ) c ) * ) a ;""", quoted_node_names=False)
+    #pattern2 = TreePattern(""" (((e ) c ) * ) a ;""", quoted_node_names=False)
+    # find any number of nodes between (c,d) and (a,b)
+    pattern1 = TreePattern("""( (d,c), (a,b)*);""", quoted_node_names=False)
+    pattern2 = TreePattern("""( (a,b), (c,d)*);""", quoted_node_names=False) # matches root node
+    #pattern3 = TreePattern("""( (a,b)*, (c,d));""", quoted_node_names=False) # no solution
+
+
 
     border = "\n" + "#" * 110 + "\n"
-    print(border)
-    print("searching tree 1")
-    print list(pattern.find_match(t1, maxhits=1, relaxed_match=True))
+    #print(border)
+    #print("searching tree 1")
+    #print list(pattern1.find_match(t1, maxhits=None, relaxed_match=True))
+
+    #print(border)
+    #print("searching tree 2")
+    #print list(pattern1.find_match(t2, maxhits=1,relaxed_match=True))
+    #print(border)
+
+    #print(border)
+    #print t3
+    #print("\n ******************** searching pattern 1 tree 3 ********************")
+    #print list(pattern1.find_match(t3, maxhits=1, relaxed_match=True))
+    #print("\n ******************** searching tree 3 pattern 2  ********************")
+    #print list(pattern2.find_match(t3, maxhits=1, relaxed_match=True))
+
+
+    #print(border)
+
+    #print(border)
+    #print t4
+    #print("searching tree 4 pattern 1")
+
+    #print list(pattern1.find_match(t4, maxhits=1,relaxed_match=True))
+
+    #print("\n ******************** searching pattern 2 tree 4 ********************")
+    #print list(pattern2.find_match(t4, maxhits=1,relaxed_match=True))
+    #print(border)
+
+    #print(border)
+    #print("searching tree 5")
+    #print t5
+    #print list(pattern1.find_match(t5, maxhits=1,relaxed_match=True))
+    #print("\n ******************** searching pattern 2 tree 3 ********************")
+    #print list(pattern2.find_match(t4, maxhits=1,relaxed_match=True))
+    #print(border)
+
 
     print(border)
-    print("searching tree 2")
-    print list(pattern.find_match(t2, maxhits=1,relaxed_match=True))
+    print("searching tree 6")
+    print t6
+    print("\n ******************** searching pattern 1 tree 6 ********************")
+    print list(pattern1.find_match(t6, maxhits=1,relaxed_match=True))
+    print("\n ******************** searching pattern 2 tree 6 ********************")
+    print list(pattern2.find_match(t6, maxhits=1,relaxed_match=True))
+    #print("\n ******************** searching pattern 3 tree 6 ********************")
+    #for node in list(pattern3.find_match(t6, maxhits=1,relaxed_match=True)):
+    #    print(node[0])
+    #print(border)
     print(border)
 
-    print(border)
-    print("searching tree 3")
-    print list(pattern.find_match(t3, maxhits=1,relaxed_match=True))
-    print(border)
-
-
+    #relaxed_match = list(pattern1.find_match(tree, maxhits=1, relaxed_match=True))
+    #self.assertEqual(relaxed_match[0][0].name, 'root')
 
 
 
