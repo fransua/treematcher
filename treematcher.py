@@ -410,34 +410,64 @@ class TreePattern(Tree):
 
 
         if match_type=="cascade":
+            # initialize variables
+            match_found=0
+            matched_root_node = None # The root node of the target tree that matches the pattern
+            pattern_length = len(self.get_descendants())  # length excluding root, might want to add a +1?
+            current_pattern_node = self
+            count = 0
             num_hits = 0
-            #matched_node_list = []
-            matched_node_set = set()
-            pattern_length = len(self.get_descendants())
-            print("############pattern length is: {}".format(pattern_length))
 
-            for node in tree.traverse("preorder"):
-                status, pattern_node, matched_nodes = self.cascade_match(node, cache)
-                #matched_node_list += matched_nodes
-                matched_node_set.update(matched_nodes)
-                #print("############ matched_nodes are: {}".format(matched_nodes))
-                print("############ matched_nodes are: {}".format(matched_node_set))
+            while pattern_length <= len(tree.get_descendants()) and count<=5: # when to break when match not found? Depends on target size minus # stars?
+                print("############## Matched_root_node is {}".format(matched_root_node))
+                # reset variables and start over
+                if matched_root_node == None:
+                    if count!=0: # if no match found on first pattern node in first round, break
+                        break
+                else:
+                    # break matched root node from the tree, there was no match found in the subtree
+                    print("resetting tree and pattern")
+                    matched_root_node.detach()
+                    matched_root_node = None  # The first node in the list that matches to the root of the pattern
+                count+=1
+                current_pattern_node = self  # start over on tree without previous node
 
-                if self != pattern_node:
-                    self = pattern_node
-                    #matched_node_list += matched_nodes
+                # length excluding root, might want to add a +1?
+                print("pattern length is: {}".format(pattern_length))
+                print("tree length is: {}".format(len(tree.get_descendants())))
 
-                if status:
-                    num_hits += 1
-                    #print("********* yeilding matched node list: {}".format(matched_node_list))
-                    print("############ yielding matched_node set: {}".format(matched_node_set))
-                    #yield matched_node_list
-                    yield matched_node_set
-                    break
 
-                #if numhits >= pattern_length:
-                if num_hits >= pattern_length:
-                    break
+
+                for node in tree.traverse("preorder"):
+                    status, pattern_node, matched_nodes = current_pattern_node.cascade_match(node, cache)
+                    if matched_root_node == None:
+                        if matched_nodes:
+                            matched_root_node = matched_nodes[0]
+
+
+                    #matched_node_set.update(matched_nodes)
+                    print("matched_nodes are: {}".format(matched_nodes))
+                    #print("############ matched_nodes are: {}".format(matched_node_set))
+
+                    if current_pattern_node != pattern_node: # we have already matches up to this point
+                        current_pattern_node = pattern_node
+
+                    if status:
+                        num_hits += 1
+                        print("yeilding matched node list: {}".format(matched_root_node))
+                        #match found
+
+                        if matched_nodes[-1] in matched_root_node:
+                            yield matched_root_node #yield status only when a full match is found
+                            match_found = 1
+                        else:
+                            print("no dice")
+                            match_found = 0
+                        break
+
+                    #if numhits >= pattern_length:
+                    if num_hits >= pattern_length:
+                        break
 
         else:
 
@@ -522,8 +552,11 @@ def relaxed_example():
 
     """
 
-    t1 = """ ((((((((e)c)a)e)d)c)b)a) ; """ # should match
+    #t1 = """ ((((((((((((e)c)a)e)d)c)b)a)d)c)b)a) ; """ # should match
+    t1 = """ (((((b,a)i)h)g)),((((((d,c)a)d)c)b)e) ; """  # should match
     t1 = PhyloTree(t1, format=8, quoted_node_names=False)
+
+
 
     #t2 = """     ((((((((e) e ) d ) c ) a ) e ) c ) a) ; """
     #t2 = PhyloTree(t2, format=8, quoted_node_names=False)
@@ -548,15 +581,12 @@ def relaxed_example():
     #pattern1 = TreePattern(""" ((e) * ) a ;""", quoted_node_names=False)
     #pattern2 = TreePattern(""" ((((e ) * ) c ) * ) a ;""", quoted_node_names=False)
     #pattern3 = TreePattern(""" (((e ) c ) * ) a ;""", quoted_node_names=False)
-    pattern1 = TreePattern(""" (((e) * ) a) ;""", quoted_node_names=False)
-    pattern2 = TreePattern(""" (((((e ) * ) c ) * ) a) ;""", quoted_node_names=False)
-    pattern3 = TreePattern(""" ((((e ) c ) * ) a) ;""", quoted_node_names=False)
-
-
-
+    #pattern1 = TreePattern(""" ((e) * ) a ;""", quoted_node_names=False)
+    #pattern2 = TreePattern(""" (((((e ) * ) c ) * ) a) ;""", quoted_node_names=False)
+    #pattern3 = TreePattern(""" ((((e ) c ) * ) a) ;""", quoted_node_names=False)
 
     # find any number of nodes between (c,d) and (a,b)
-    #pattern1 = TreePattern("""( (d,c), (a,b)*);""", quoted_node_names=False)
+    pattern1 = TreePattern("""( (d,c), (a,b)*);""", quoted_node_names=False)
     #pattern2 = TreePattern("""( (a,b), (c,d)*);""", quoted_node_names=False) # matches root node
     #pattern3 = TreePattern("""( (a,b)*, (c,d));""", quoted_node_names=False) # no solution
 
@@ -568,10 +598,10 @@ def relaxed_example():
     print("\n ******************** searching pattern 1 tree 1 ********************")
     print list(pattern1.find_match(t1, maxhits=None,  match_type="cascade"))
     print("\n ******************** searching tree 1 pattern 2  ********************")
-    print list(pattern2.find_match(t1, maxhits=1,  match_type="cascade"))
-    print("\n ******************** searching tree 1 pattern 3  ********************")
-    print list(pattern3.find_match(t1, maxhits=1,  match_type="cascade"))
-    print(border)
+    #print list(pattern2.find_match(t1, maxhits=1,  match_type="cascade"))
+    #print("\n ******************** searching tree 1 pattern 3  ********************")
+    #print list(pattern3.find_match(t1, maxhits=1,  match_type="cascade"))
+    #print(border)
 
     #print(border)
     #print t3
@@ -583,15 +613,15 @@ def relaxed_example():
 
     #print(border)
 
-    print(border)
-    print(t4)
-    print("\n ******************** searching pattern 1 tree 4 ********************")
-    print list(pattern1.find_match(t4, maxhits=None, match_type="cascade"))
-    print("\n ******************** searching tree 4 pattern 2  ********************")
-    print list(pattern2.find_match(t4, maxhits=1, match_type="cascade"))
-    print("\n ******************** searching tree 4 pattern 3  ********************")
-    print list(pattern3.find_match(t4, maxhits=1, match_type="cascade"))
-    print(border)
+    #print(border)
+    #print(t4)
+    #print("\n ******************** searching pattern 1 tree 4 ********************")
+    #print list(pattern1.find_match(t4, maxhits=None, match_type="cascade"))
+    #print("\n ******************** searching tree 4 pattern 2  ********************")
+    #print list(pattern2.find_match(t4, maxhits=1, match_type="cascade"))
+    #print("\n ******************** searching tree 4 pattern 3  ********************")
+    #print list(pattern3.find_match(t4, maxhits=1, match_type="cascade"))
+    #print(border)
 
     #print(border)
     #print("searching tree 5")

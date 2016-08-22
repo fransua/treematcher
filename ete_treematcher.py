@@ -7,8 +7,7 @@ from treematcher import TreePattern, TreePatternCache
 
 DESC=''
 
-#ete3 treematcher --pattern "(hello, kk);" --pattern-format 8 --tree-format 8 --trees "(hello,(1,2,3)kk);" --quoted-node-names
-
+#ete3 treematcher -p "MyPattern.txt" --tree-format 8 -t "MyTargetTrees.txt" -o treematches.txt --tab --tree-format 8
 
 def populate_args(treematcher_args_p):
 
