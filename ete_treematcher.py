@@ -7,17 +7,18 @@ from treematcher import TreePattern, TreePatternCache
 
 DESC=''
 
-#ete3 treematcher -p "MyPattern.txt" --tree-format 8 -t "MyTargetTrees.txt" -o treematches.txt --tab --tree-format 8
+#ete3 treematcher --pattern "(hello, kk);" --pattern-format 8 --tree-format 8 --trees "(hello,(1,2,3)kk);" --quoted-node-names
+
 
 def populate_args(treematcher_args_p):
 
     treematcher_args = treematcher_args_p.add_argument_group('TREEMATCHER OPTIONS')
 
 
-    treematcher_args.add_argument("--quoted-node-names", dest="quoted_node_names",
+    treematcher_args.add_argument("--quoted_node_names", dest="quoted_node_names",
                               action="store_true",
                               help="True if using quotes to designate node names in the pattern. Otherwise False.")
-    treematcher_args.add_argument("--tree-format", dest="tree_format",
+    treematcher_args.add_argument("--tree_format", dest="tree_format",
                               type=int,
                               default=0,
                               help="A number 0-8 designating Newick format.")
@@ -47,7 +48,7 @@ def populate_args(treematcher_args_p):
                                help="filename (.SVG, .PDF, or .PNG), to render the tree")
 
 def run(args):
-    if args.src_trees is None:
+    if args.src_trees is None and args.src_tree_list is None:
         log.error('Please specify a tree to search (i.e. -t) ')
         sys.exit(-1)
     if not args.pattern_trees and not args.pattern_tree_list:
@@ -63,10 +64,11 @@ def run(args):
 
         if args.output:
             filename = args.output
-            if '.' in args.output:
-                filename = filename.replace('.', str(pattern_num) + '.')
-            else:
-                filename+=str(pattern_num)
+            if len(list(pattern_tree_iterator(args))) > 1:
+                if '.' in args.output:
+                    filename = filename.replace('.', str(pattern_num) + '.')
+                else:
+                    filename += str(pattern_num)
 
             outputfile = open(filename, 'w')
 
@@ -77,11 +79,14 @@ def run(args):
         for nw in src_tree_iterator(args):
             print("nw is {}".format(nw))
             t = PhyloTree(nw, format=args.tree_format)
+
             if args.cache:
                 cache = TreePatternCache(t)
             else:
                 cache = None
+
             matches = list(pattern.find_match(t, maxhits=args.maxhits, cache=cache))
+            print("matches are {}".format(matches))
 
             if args.render:
                 from . import ete_view
@@ -95,7 +100,7 @@ def run(args):
                 if args.asciioutput:
                     for match in matches:
                         outputfile.write(str(match) + '\n')
-                if args.taboutput:
+                else:  #args.taboutput
                     outputfile.write('\t'.join([match.write(features=[]) for match in matches]))
 
             else:

@@ -56,87 +56,6 @@ solution = list(pattern.find_match(tree, None))
 print("The number of solutions are: ", len(solution))
 
 ```
-
-
-A short list of commonly used constraints is given in the following table.
-
-Table 1: Examples of common constraints.
-
-|  type                     |custom|  syntax example       						            | example meaning       				        |  Comments																        |
-| --------------------------|:-:|:---------------------------------------------------------:|:---------------------------------------------:|:-----------------------------------------------------------------------------:|
-| node                      |   | @	            						                    |a  node, default for nodes left blank	        | Use @.attribute to access attribute, function(@) to access function           |
-| node name                 |   | node_name, "node_name", or @.name=="node_name"	        | when attribute not specified, name is assumed | Looking for multiple names, use list: @.name in ("sample1","sample2")         |
-| distance                  |   | @.dist >= 0.5     					                    | branch length no less than 0.5		        | Use any of the following: <, <=, ==, >=, !=								    |
-| support                   |   | @.support > 0.9	            		                    | Has a support value greater than 0.90	        | 																		        |
-| species                   |   | @.species=="Homo sapiens"	    		                    | Homo sapiens is species of node		        | See set_species_naming_function()	for details							        |
-| scientific name           |   | @.sci_name == Euarchontoglires 		                    | scientific name is Euarchontoglires	        | See annotate_ncbi_taxa() function for details 						        |
-| rank                      |   | @.rank == subfamily 					                    | node is ranked at the subfamily level	        | See annotate_ncbi_taxa() function for details							        |
-| taxonomic id              |   | @.taxid == 207598						                    | 20758 is the taxid of the node			    | See annotate_ncbi_taxa() function for details							        |
-| number of children        |   | len(@.children)						                    | binary tree internal node has 2, leaf hss 0   | use quoted node names to differentiate parentheses from Newick Structure	    |
-| size of subtree           |   | @.get_descendants() > 5							        | number of descendants/size of tree            | custom attribute 												                |
-| number of leaves          |   | len(@)                                                    |                                               |                                                                               |
-| lineage                   | * | 9606 in @.lineage or "Homo sapiens" in @.named_lineage    | Homo sapiens in @.lineage				        | Find NCBI taxonomy ID or the full scientific name	in a node's lineage	        |
-| species in descendant node| * | contains_species(@, ["Pan troglodytes", "Homo sapiens"])	| Find species in the last at or below node     | species at a node and any of it's descendants														        |
-| leaf name                 | * | contains_leaves(@, ["Chimp_2", "Chimp_3"])		        | Pan_troglodytes_1 is descendant leaf name	    | Find the leaf name within a list of leaf names  |
-| number of duplications    | * |  		n_duplications(@) > 0                               | Number of duplications beyond and including this node is greater than zero.	    | number of duplication events at or below a node  |
-| number of speciations     | * |  		n_speciations(@) > 0                                | Number of speciations beyond and including this node is greater than zero.	    | number of speciation events at or below a node  |
-
-*custom functions do not exist outside of the treematcher class.
-
-
-
-### Advanced Topics
-
-#### optimization
-
-Virtually any attribute available in ETE can be searched for on a tree, however, the larger the structure the more complex the pattern is, the more computationally intensive the search will be. Large Newick trees with complex conditional statements calling functions that require several tree traversals is not recommended.
-Instead, break complex patterns into smaller searches. If conditional statements are used, try putting the part of the search that you think will be faster first.
-
-#### Using a cache
-For trees with thousands of nodes, you can speed up a search by using a cache. The same cache can be used with multiple patterns.
-
-```
-# Example 7:
-cache = TreePatternCache(t)
-solution = list(pattern.find_match(t, maxhits=None, cache=cache))
-```
-
-####  Custom Functions
-You can use your own custom functions and syntax in treematcher.  In the following example, a custom function is created in a custom class called MySyntax.
-
-```
-# Example 8: Expanding vocabulary
-class MySyntax(PatternSyntax):
-	def my_nice_function(self, node):
-		return node.species == 'Chimp'
-
-my_syntax = MySyntax()
-
-pattern = """ 'my_nice_function(@)'; """
-t_pattern = TreePattern(pattern, syntax=my_syntax)
-for match in t_pattern.find_match(t, cache):
-	print(list(match))
-
-```
-
-### Command line tool
-|  argument       						| meaning       						                            |
-| --------------------------------------|:-----------------------------------------------------------------:|
-| -p								    | a list of patterns in newick format (filenames or quoted strings) |
-| -t								    | a list of trees in newick format (filenames or quoted strings)    |
-| --tree-format							| format for trees, default = 1	                            		|
-| --quoted-node-names 					| default = True					                            	|
-| --cache            					| name of cache, default = None					                  	|
-| --maxhits          					| number of matches returned, default = 1   						|
-| --pattern_tree_list                   | path to a file containing many pattern trees, one per line        |
-| --render                              | filename (.SVG, .PDF, or .PNG), to render the tree image          |
-| --tab                                 | output results in tab delimited format                            |
-| --ascii                               | output results in ascii format                                    |
-
-example:
-ete3 treematcher -p "my_patterns.txt" --tree-format 8 -t "MyTargetTrees.txt" -o treematches.txt --tab --tree-format 8
-
-
 The following tutorial shows the previous examples in more detail.
 
 
@@ -265,3 +184,88 @@ Find a tree where sample_1 and sample_2 are siblings.
 ('solution 2 is', True)
 ('All solutions for pattern 2 are:', [Tree node 'ancestor_a' (0x108f09c9), Tree node 'ancestor_b' (0x1091024d)])
 ```
+
+A short list of commonly used constraints is given in the following table.
+
+Table 1: Examples of common constraints.
+
+|  type                     |custom|  syntax example       						            | example meaning       				        |  Comments																        |
+| --------------------------|:-:|:---------------------------------------------------------:|:---------------------------------------------:|:-----------------------------------------------------------------------------:|
+| node                      |   | @	            						                    |a  node, default for nodes left blank	        | Use @.attribute to access attribute, function(@) to access function           |
+| node name                 |   | node_name, "node_name", or @.name=="node_name"	        | when attribute not specified, name is assumed | Looking for multiple names, use list: @.name in ("sample1","sample2")         |
+| distance                  |   | @.dist >= 0.5     					                    | branch length no less than 0.5		        | Use any of the following: <, <=, ==, >=, !=								    |
+| support                   |   | @.support > 0.9	            		                    | Has a support value greater than 0.90	        | 																		        |
+| species                   |   | @.species=="Homo sapiens"	    		                    | Homo sapiens is species of node		        | See set_species_naming_function()	for details							        |
+| scientific name           |   | @.sci_name == Euarchontoglires 		                    | scientific name is Euarchontoglires	        | See annotate_ncbi_taxa() function for details 						        |
+| rank                      |   | @.rank == subfamily 					                    | node is ranked at the subfamily level	        | See annotate_ncbi_taxa() function for details							        |
+| taxonomic id              |   | @.taxid == 207598						                    | 20758 is the taxid of the node			    | See annotate_ncbi_taxa() function for details							        |
+| number of children        |   | len(@.children)						                    | binary tree internal node has 2, leaf hss 0   | use quoted node names to differentiate parentheses from Newick Structure	    |
+| size of subtree           |   | @.get_descendants() > 5							        | number of descendants/size of tree            | custom attribute 												                |
+| number of leaves          |   | len(@)                                                    |                                               |                                                                               |
+| lineage                   | * | 9606 in @.lineage or "Homo sapiens" in @.named_lineage    | Homo sapiens in @.lineage				        | Find NCBI taxonomy ID or the full scientific name	in a node's lineage	        |
+| species in descendant node| * | contains_species(@, ["Pan troglodytes", "Homo sapiens"])	| Find species in the last at or below node     | species at a node and any of it's descendants														        |
+| leaf name                 | * | contains_leaves(@, ["Chimp_2", "Chimp_3"])		        | Pan_troglodytes_1 is descendant leaf name	    | Find the leaf name within a list of leaf names  |
+| number of duplications    | * |  		n_duplications(@) > 0                               | Number of duplications beyond and including this node is greater than zero.	    | number of duplication events at or below a node  |
+| number of speciations     | * |  		n_speciations(@) > 0                                | Number of speciations beyond and including this node is greater than zero.	    | number of speciation events at or below a node  |
+
+*custom functions do not exist outside of the treematcher class.
+
+
+
+### Advanced Topics
+
+#### optimization
+
+Virtually any attribute available in ETE can be searched for on a tree, however, the larger the structure the more complex the pattern is, the more computationally intensive the search will be. Large Newick trees with complex conditional statements calling functions that require several tree traversals is not recommended.
+Instead, break complex patterns into smaller searches. If conditional statements are used, try putting the part of the search that you think will be faster first.
+
+#### Using a cache
+For trees with thousands of nodes, you can speed up a search by using a cache. The same cache can be used with multiple patterns.
+
+```
+# Example 7:
+cache = TreePatternCache(t)
+solution = list(pattern.find_match(t, maxhits=None, cache=cache))
+```
+
+####  Custom Functions
+You can use your own custom functions and syntax in treematcher.  In the following example, a custom function is created in a custom class called MySyntax.
+
+```
+# Example 8: Expanding vocabulary
+class MySyntax(PatternSyntax):
+	def my_nice_function(self, node):
+		return node.species == 'Chimp'
+
+my_syntax = MySyntax()
+
+pattern = """ 'my_nice_function(@)'; """
+t_pattern = TreePattern(pattern, syntax=my_syntax)
+for match in t_pattern.find_match(t, cache):
+	print(list(match))
+
+```
+
+### Command line tool
+|  argument       						| meaning       						                            |
+| --------------------------------------|:-----------------------------------------------------------------:|
+| -p								    | a list of patterns in newick format (filenames or quoted strings) |
+| -t								    | a list of trees in newick format (filenames or quoted strings)    |
+| --tree-format							| format for trees, default = 1	                            		|
+| --quoted-node-names 					| default = True					                            	|
+| --cache            					| name of cache, default = None					                  	|
+| --maxhits          					| number of matches returned, default = 1   						|
+| --src_tree_list                       | path to a file containing many pattern trees, one per line        |
+| --pattern_tree_list                   | path to a file containing many pattern trees, one per line        |
+| --render                              | filename (.SVG, .PDF, or .PNG), to render the tree image          |
+| --tab                                 | output results in tab delimited format                            |
+| --ascii                               | output results in ascii format                                    |
+
+examples:
+Read patterns from a file called MyPatterns.txt and apply to each tree in MyTargetTrees.txt, output the results of each pattern in separate files called treematches0.txt, treematches1.txt, etc
+If there is only one pattern, the result file will not be numbered.
+``` ete3 treematcher --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt --tree_format 8 ```
+
+Provide the pattern and tree directly as strings.
+```ete3 treematcher -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" -o treematches.txt --tree_format 8```
+
