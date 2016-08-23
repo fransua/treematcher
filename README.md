@@ -200,15 +200,15 @@ Table 1: Examples of common constraints.
 | rank                      |   | @.rank == subfamily 					                    | node is ranked at the subfamily level	        | See annotate_ncbi_taxa() function for details							        |
 | taxonomic id              |   | @.taxid == 207598						                    | 20758 is the taxid of the node			    | See annotate_ncbi_taxa() function for details							        |
 | number of children        |   | len(@.children)						                    | binary tree internal node has 2, leaf hss 0   | use quoted node names to differentiate parentheses from Newick Structure	    |
-| size of subtree           |   | @.get_descendants() > 5							        | number of descendants/size of tree            | custom attribute 												                |
-| number of leaves          |   | len(@)                                                    |                                               |                                                                               |
+| size of subtree           |   | @.get_descendants() > 5							        | size of tree  is greater than 5               | number of descendants												            |
+| number of leaves          |   | len(@) > 2                                                | number of leaves is greater than 2            | number of leaves descending from a node                                       |
 | lineage                   | * | 9606 in @.lineage or "Homo sapiens" in @.named_lineage    | Homo sapiens in @.lineage				        | Find NCBI taxonomy ID or the full scientific name	in a node's lineage	        |
-| species in descendant node| * | contains_species(@, ["Pan troglodytes", "Homo sapiens"])	| Find species in the last at or below node     | species at a node and any of it's descendants														        |
-| leaf name                 | * | contains_leaves(@, ["Chimp_2", "Chimp_3"])		        | Pan_troglodytes_1 is descendant leaf name	    | Find the leaf name within a list of leaf names  |
+| species in descendant node| * | contains_species(@, ["Pan troglodytes", "Homo sapiens"])	| Find species in the last at or below node     | species at a node and any of it's descendants							        |
+| leaf name                 | * | contains_leaves(@, ["Chimp_2", "Chimp_3"])		        | Pan_troglodytes_1 is descendant leaf name	    | Find the leaf name within a list of leaf names                                |
 | number of duplications    | * |  		n_duplications(@) > 0                               | Number of duplications beyond and including this node is greater than zero.	    | number of duplication events at or below a node  |
 | number of speciations     | * |  		n_speciations(@) > 0                                | Number of speciations beyond and including this node is greater than zero.	    | number of speciation events at or below a node  |
 
-*custom functions do not exist outside of the treematcher class.
+* functions do not exist outside of treematcher classes.
 
 
 
