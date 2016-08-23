@@ -247,25 +247,32 @@ for match in t_pattern.find_match(t, cache):
 ```
 
 ### Command line tool
-|  argument       						| meaning       						                            |
-| --------------------------------------|:-----------------------------------------------------------------:|
-| -p								    | a list of patterns in newick format (filenames or quoted strings) |
-| -t								    | a list of trees in newick format (filenames or quoted strings)    |
-| --tree-format							| format for trees, default = 1	                            		|
-| --quoted-node-names 					| default = True					                            	|
-| --cache            					| name of cache, default = None					                  	|
-| --maxhits          					| number of matches returned, default = 1   						|
-| --src_tree_list                       | path to a file containing many pattern trees, one per line        |
-| --pattern_tree_list                   | path to a file containing many pattern trees, one per line        |
-| --render                              | filename (.SVG, .PDF, or .PNG), to render the tree image          |
-| --tab                                 | output results in tab delimited format                            |
-| --ascii                               | output results in ascii format                                    |
+|  argument       						| meaning       						                                                  |
+| --------------------------------------|:---------------------------------------------------------------------------------------:|
+| -p								    | a list of patterns in newick format (filenames with one per file or quoted strings)     |
+| -t								    | a list of trees in newick format (filenames or quoted strings)                          |
+|-v                                     | prints the current pattern, prints which trees (by number) do not match the pattern     |
+| --tree_format							| format for trees, default = 1	                            		                      |
+| --quoted_node_names 					| default = True					                            	                      |
+| --cache            					| name of cache, default = None					                  	                      |
+| --maxhits          					| number of matches returned, default = 1   						                      |
+| --src_tree_list                       | path to a file containing many target trees, one per line                               |
+| --pattern_tree_list                   | path to a file containing many pattern trees, one per line                              |
+| --render                              | filename (.SVG, .PDF, or .PNG), to render the tree image                                |
+| --tab                                 | output results in tab delimited format, default if -o used and ascii not specified      |
+| --ascii                               | output results in ascii format                                                          |
 
 examples:
 Read patterns from a file called MyPatterns.txt and apply to each tree in MyTargetTrees.txt, output the results of each pattern in separate files called treematches0.txt, treematches1.txt, etc
 If there is only one pattern, the result file will not be numbered.
-``` ete3 treematcher --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt --tree_format 8 ```
+``` ete3 treematcher --pattern_tree_list "MyPattern.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt ```
 
-Provide the pattern and tree directly as strings.
-```ete3 treematcher -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" -o treematches.txt --tree_format 8```
+Provide the pattern and tree as strings and print the result to the terminal.
+```ete3 treematcher -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" ```
+
+The render option will save each match as an image. If there are multiple patterns, numbers will be used to designate each pattern starting from 0.
+If there are multiple matches, and underscore is used with a number for each match starting with 0. If I had two
+
+``` ete3 treematcher --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" --render treematches.png ```
+
 

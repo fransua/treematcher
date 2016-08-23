@@ -58,13 +58,14 @@ def run(args):
     if args.maxhits == 0:
         args.maxhits = None
 
+    pattern_length = len(list(pattern_tree_iterator(args)))
+
     for pattern_num, p in enumerate(pattern_tree_iterator(args)):
-        print("p is {}".format(p))
         pattern = TreePattern(p, quoted_node_names=args.quoted_node_names)
 
         if args.output:
             filename = args.output
-            if len(list(pattern_tree_iterator(args))) > 1:
+            if pattern_length > 1:
                 if '.' in args.output:
                     filename = filename.replace('.', str(pattern_num) + '.')
                 else:
@@ -76,8 +77,7 @@ def run(args):
             print("Pattern is: ")
             print(pattern)
 
-        for nw in src_tree_iterator(args):
-            print("nw is {}".format(nw))
+        for n, nw in enumerate(src_tree_iterator(args)):
             t = PhyloTree(nw, format=args.tree_format)
 
             if args.cache:
@@ -86,15 +86,40 @@ def run(args):
                 cache = None
 
             matches = list(pattern.find_match(t, maxhits=args.maxhits, cache=cache))
-            print("matches are {}".format(matches))
+            match_length=len(matches)
 
             if args.render:
-                from . import ete_view
-                ts = ete_view.TreeStyle()
-                ts.layout_fn = ete_view.maptrees_layout
-                ts.show_scale = False
-                ts.tree_width = 400
-                [match.render(args.image, tree_style=ts) for match in matches]
+                image = args.render
+                if pattern_length > 1:  # multiple patterns
+                    if match_length > 1:  # one file per match on each pattern
+                        for m, match in enumerate(matches):
+                            if '.' in image:
+                                image = image.replace('.', str(pattern_num) + '_' + str(m) + '.')
+                            else:
+                                image += str(pattern_num) + str(m)
+                            match.render(image)
+                    elif match_length == 1:  # One match on multiple patterns
+                        if '.' in image:
+                            image = image.replace('.', str(pattern_num) + '.')
+                        else:
+                            image += str(pattern_num)
+                        matches[0].render(image)
+                    else:
+                        if args.verbosity > 2:
+                            print("No matches for pattern {} tree {}".format(pattern_num, n))
+                else:  # one pattern
+                    if match_length > 1:  # one file per match on one pattern
+                        for m, match in enumerate(matches):
+                            if '.' in image:
+                                image = image.replace('.', '_' + str(m) + '.')
+                            else:
+                                image += str(m)
+                            match.render(image)
+                    elif match_length == 1:  # one file for one match
+                        matches[0].render(image)
+                    else:
+                        if args.verbosity > 2:
+                            print("No matches for tree {}".format(n))
 
             if args.output:
                 if args.asciioutput:
@@ -103,7 +128,7 @@ def run(args):
                 else:  #args.taboutput
                     outputfile.write('\t'.join([match.write(features=[]) for match in matches]))
 
-            else:
+            if not args.output and not args.render:
                 for match in matches:
                     print(match)
 
