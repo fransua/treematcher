@@ -1,13 +1,18 @@
+
 import sys
 from logging import log
 from argparse import ArgumentParser
 from .common import src_tree_iterator
 from ..phylo import PhyloTree
 from treematcher import TreePattern, TreePatternCache
+#must be run inside ete
+
+
 
 DESC=''
 
 #ete3 treematcher --pattern "(hello, kk);" --pattern-format 8 --tree-format 8 --trees "(hello,(1,2,3)kk);" --quoted-node-names
+
 
 
 def populate_args(treematcher_args_p):
@@ -132,7 +137,6 @@ def run(args):
                 for match in matches:
                     print(match)
 
-
     if args.output:
         outputfile.close()
 
@@ -151,11 +155,17 @@ def pattern_tree_iterator(args):
                 yield line
 
 
+
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     populate_args(parser)
     args = parser.parse_args(sys.argv[1:])
     run(args)
+
+
+
+
 
 
 
