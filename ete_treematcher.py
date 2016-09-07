@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from .common import src_tree_iterator
 from ..phylo import PhyloTree
 from treematcher import TreePattern, TreePatternCache
-#must be run inside ete
+#must be run inside ete!!!
 
 
 
