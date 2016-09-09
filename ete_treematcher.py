@@ -1,11 +1,13 @@
 
 import sys
-from logging import log
+#from logging import log
+from .common import log
 from argparse import ArgumentParser
-from .common import src_tree_iterator
+from ..tools.common import src_tree_iterator
 from ..phylo import PhyloTree
-from treematcher import TreePattern, TreePatternCache
-#must be run inside ete!!!
+from ..treematcher import TreePattern, TreePatternCache
+
+#must be run inside ete
 
 
 
@@ -151,8 +153,7 @@ def pattern_tree_iterator(args):
     elif args.pattern_tree_list:
         for line in open(args.pattern_tree_list):
             line = line.strip()
-            if line:
-                yield line
+            if li                yield line
 
 
 
