@@ -250,7 +250,7 @@ class TreePattern(Tree):
                 status = True
                 self = self.up
 
-       # print ("status is {} and self is {}".format(status, self.name))
+        #print ("status is {} and self is {}".format(status, self.name))
 
         # if so, continues evaluating children pattern nodes against target node
         # children
@@ -260,12 +260,16 @@ class TreePattern(Tree):
 
                 #if the number of children do not match, find where they do and check that
                 nodes = []
+                #print("now checking children")
 
                 if len(node.children) < len(self.children):
+                    #print("len(node.children) {} < len(self.children) {} for node {} and self {}".format(len(node.children), len(self.children), node.name, self.name))
+                    #print(node)
                     if self.name == '+':
                         count = 0
                         for skip_to_node in node.traverse(strategy="levelorder"):
                             # skip to node with correct number of children
+                            #print("Checking node {}".format(skip_to_node.name, len(skip_to_node.children)))
                             if len(skip_to_node.children) >= len(self.children):
                                 count += 1
                                 nodes += [skip_to_node]
@@ -278,9 +282,12 @@ class TreePattern(Tree):
                                        #print("nodes are now {}".format(nodes))
 
                                 break
-                        if count <= 1:  # not enough target children found
+                        if count < 1:
+                            #print("not enough target children found")
                             status = False
+
                     else:
+                        #print("setting status to false")
                         status = False
 
                 # If pattern node expects children nodes, tries to find a
@@ -298,9 +305,16 @@ class TreePattern(Tree):
                             for i in range(len(self.children)):
                                 st = self.children[i].match(candidate[i], cache)
                                 #print("st is {} and self is {}".format(st, self.name))
-                                if st == False and self.name == '+' and len(candidate[i].children)>0:
+
+                                #if parent in pattern is plus and there more children to check, keep going
+                                #if st == False and self.name == '+' and len(candidate[i].children)>0 and \
+                                #        any([len(sis.children) > 0 for sis in node.get_sisters()]):
+
+                                if st == False and self.name == '+' and len(candidate[i].children) > 0:
                                     #print("######## skipping status")
                                     pass
+
+
                                 else:
                                     sub_status_count += 1
                                     sub_status &= st
@@ -414,51 +428,64 @@ class TreePattern(Tree):
 def test():
     '''
 
-    The + represents one or more nodes.
+            The + represents one or more nodes.
 
-    '''
+            '''
 
-    t1 = """ ((e,f)a) ; """  # should not match any pattern
-    t1 = PhyloTree(t1, format=8, quoted_node_names=False)
+    # should not match any pattern
+    t1 = PhyloTree(""" ((c,g)a) ; """, format=8, quoted_node_names=False)
 
-    t3 = """ ((d,c)b)a ; """  # should match patterns 1,2
-    t3 = PhyloTree(t3, format=8, quoted_node_names=False)
+    # should not match any pattern
+    # does not match pattern 1 because there must be at least one node between a and (c,d)
+    t2 = PhyloTree(""" ((c,d)a) ; """, format=8, quoted_node_names=False)
 
-    t4 = """ ((c,d),(e,f)b)a ; """  # should match patterns 1,2
-    t4 = PhyloTree(t4, format=8, quoted_node_names=False)
+    # should match patterns 1,2
+    t3 = PhyloTree(""" ((d,c)b)a ; """, format=8, quoted_node_names=False)
 
-    t5 = """ (((e,f)dum,(c,d)dee)b)a ; """  # should match pattern 1,2
-    t5 = PhyloTree(t5, format=8, quoted_node_names=False)
+    # should match patterns 1,2
+    t4 = PhyloTree(""" ((c,d),(e,f)b)a ; """, format=8, quoted_node_names=False)
 
-    t6 = """ (((e,f),(c,g)b)b)a ; """  # should match pattern 1,2
-    t6 = PhyloTree(t6, format=8, quoted_node_names=False)
+    # should match pattern 1,2
+    t5 = PhyloTree(""" (((e,f)dum,(c,d)dee)b)a ; """, format=8, quoted_node_names=False)
 
-    t6 = """ (((e,f),(c,g)b)b)a ; """  # should match only 1
-    t6 = PhyloTree(t6, format=8, quoted_node_names=False)
+    # should match only 1
+    # does not match pattern 2 since (c,g) does not match (c,d)
+    t6 = PhyloTree(""" (((e,f),(c,g)b)b)a ; """, format=8, quoted_node_names=False)
 
-    t7 = """ (((e,f,g)d,(e,f,i)c)b)a ; """  # should match only 1
-    t7 = PhyloTree(t7, format=8, quoted_node_names=False)
+    # should match 1,2,3
+    t7 = PhyloTree(""" (((e,f,g)d,(e,f,i)c)b)a ; """, format=8, quoted_node_names=False)
 
-    t8 = """ (((e,f,i)d,(e,f,g)c)b)a ; """  # should match only 1
-    t8 = PhyloTree(t8, format=8, quoted_node_names=False)
+    # should match 1,2,3
+    t8 = PhyloTree(""" (((e,f,i)d,(e,f,g)c)b)a ; """, format=8, quoted_node_names=False)
+
+    # should match 1,2 not 3
+    t9 = PhyloTree(""" (((e,f,i)d,(e,f,j)c)b)a ; """, format=8, quoted_node_names=False)
+
+    # Should match 1,2,3
+    # does not match pattern4 because ('e','f','g') should come from sibling of b
+    t10 = PhyloTree(""" (b,((g,h,i)b,(e,f,g)c)d)a ; """, format=8, quoted_node_names=False)
+
+    # should match 1,3,4
+    # does not match pattern 2 because (c,c) does not match (c,d)
+    t11 = PhyloTree("""  ( ((e, f, g) c) b, ((g, h, i)c) d) a ; """, format=8, quoted_node_names=False)
 
     pattern1 = TreePattern(""" ((c)+)a ;""", quoted_node_names=False)
-    print(list(pattern1.find_match(t1, maxhits=None)))
-    print(list(pattern1.find_match(t6, maxhits=None)))
-
     pattern2 = TreePattern(""" (('c','d')'+') 'a' ;""", quoted_node_names=True)
-    print(list(pattern2.find_match(t1, maxhits=None)))
-    print(list(pattern2.find_match(t3, maxhits=None)))
-    print(list(pattern2.find_match(t4, maxhits=None)))
-    print(list(pattern2.find_match(t5, maxhits=None)))
-    print(list(pattern2.find_match(t6, maxhits=None)))
-
-
     pattern3 = TreePattern(""" (('e','f','g')'+') 'a' ;""", quoted_node_names=True)
-    print(list(pattern3.find_match(t7, maxhits=None)))
-    print(list(pattern3.find_match(t8, maxhits=None)))
+    pattern4 = TreePattern(""" ((('g','h','i')+)'d',('e','f','g')'+') 'a' ;""", quoted_node_names=True)
 
+    pattern1_match = [3, 4, 5, 6, 7, 8, 9, 10, 11]
+    pattern2_match = [3, 4, 5, 7, 8, 9, 10]
+    pattern3_match = [7, 8, 10, 11]
+    pattern4_match = [11]
+    true_match = [pattern1_match, pattern2_match, pattern3_match, pattern4_match]
 
+    for p_num,pattern in enumerate([pattern1, pattern2, pattern3, pattern4]):
+        pattern_match = []
+        for tree_num, tree in enumerate([t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11]):
+            if list(pattern.find_match(tree, maxhits=None)):
+                pattern_match += [tree_num+1]
+        print(pattern_match == true_match[p_num])
 
 
 
