@@ -7,8 +7,10 @@ import ast
 import six
 from ete3 import PhyloTree, Tree, NCBITaxa
 
+from symbols import SYMBOL
+
 # internal modules
-# ...
+#...
 
 
 class TreePatternCache(object):
@@ -246,7 +248,7 @@ class TreePattern(Tree):
         #print("match node {} to self {}".format(node.name, self.name))
 
         if not status:
-            if self.up is not None and self.up.name == '+':  # skip node by resetting pattern
+            if self.up is not None and (self.up.name == SYMBOL["one_or_more"] or self.up.name == SYMBOL["zero_or_more"]):  # skip node by resetting pattern
                 status = True
                 self = self.up
 
@@ -265,7 +267,7 @@ class TreePattern(Tree):
                 if len(node.children) < len(self.children):
                     #print("len(node.children) {} < len(self.children) {} for node {} and self {}".format(len(node.children), len(self.children), node.name, self.name))
                     #print(node)
-                    if self.name == '+':
+                    if self.name == SYMBOL["one_or_more"] or self.name == SYMBOL["zero_or_more"]:
                         count = 0
                         for skip_to_node in node.traverse(strategy="levelorder"):
                             # skip to node with correct number of children
@@ -310,10 +312,9 @@ class TreePattern(Tree):
                                 #if st == False and self.name == '+' and len(candidate[i].children)>0 and \
                                 #        any([len(sis.children) > 0 for sis in node.get_sisters()]):
 
-                                if st == False and self.name == '+' and len(candidate[i].children) > 0:
+                                if st == False and (self.name == SYMBOL["one_or_more"] or self.name == SYMBOL["zero_or_more"]) and len(candidate[i].children) > 0:
                                     #print("######## skipping status")
                                     pass
-
 
                                 else:
                                     sub_status_count += 1
@@ -324,6 +325,11 @@ class TreePattern(Tree):
                                 break
                             else:
                                 status = False
+                    elif self.name == SYMBOL["zero_or_more"]:
+                        for own_child in self.children:
+                            if len(own_child.children) == 0 and own_child.is_local_match(node, cache):
+                                status = True
+                                #sub_status_count += 1
                     if status and sub_status_count > 0:
                         break
 
@@ -352,10 +358,11 @@ class TreePattern(Tree):
             # converts references to node itself
             constraint = self.name.replace('@', '__target_node')
 
-        elif '+' == self.name:
+        elif SYMBOL["one_or_more"] == self.name:
             # plus pattern node should match any target node
             constraint = ''
-
+        elif SYMBOL["zero_or_more"] == self.name:
+            constraint = ''
         else:
             # if no references to itself, let's assume we search an exact name
             # match (allows using regular newick string as patterns)
@@ -467,7 +474,7 @@ def test():
 
     # should match 1,3,4
     # does not match pattern 2 because (c,c) does not match (c,d)
-    t11 = PhyloTree("""  ( ((e, f, g) c) b, ((g, h, i)c) d) a ; """, format=8, quoted_node_names=False)
+    t11 = PhyloTree("""  ( ((e, f, g) c) b, ((g, (w)h, i)c) d) a ; """, format=8, quoted_node_names=False)
 
     pattern1 = TreePattern(""" ((c)+)a ;""", quoted_node_names=False)
     pattern2 = TreePattern(""" (('c','d')'+') 'a' ;""", quoted_node_names=True)
@@ -486,6 +493,16 @@ def test():
             if list(pattern.find_match(tree, maxhits=None)):
                 pattern_match += [tree_num+1]
         print(pattern_match == true_match[p_num])
+
+
+    print "\n"
+    p6 = TreePattern(""" ((c)*)a ;""", quoted_node_names=False)
+
+    trees = [t1,t2,t3,t4,t5,t11]
+
+    for i in range(0,len(trees)):
+        print "tree" + str(i + 1)  + ": " + str(len(list(p6.find_match(trees[i]))) > 0)
+
 
 
 
