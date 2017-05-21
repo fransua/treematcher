@@ -1,6 +1,7 @@
 #system modules
 import re
 from itertools import permutations
+from sys import stderr
 
 # third party modules
 import ast
@@ -229,6 +230,23 @@ class TreePattern(Tree):
         # Set a default syntax controller if a custom one is not provided
         self.syntax = syntax if syntax else PatternSyntax()
 
+        # check the tree syntax.
+        if not self.validate():
+            # this is just a validation demo. It does not stop the creation.
+            print >> stderr, "The pattern is not valid."
+
+
+
+    def validate(self):
+        for node in self.traverse():
+
+            # check that the star symbol has one child.
+            # check that the star is not the root node.
+            if node.name == "*":
+                if len(node.children) > 1 or node.up == None:
+                    return False
+        return True
+
     # FUNCTIONS EXPOSED TO USERS START HERE
     def match(self, node, cache=None):
         """
@@ -406,6 +424,7 @@ class TreePattern(Tree):
             # self.syntax.__cache = None
             return st
 
+
     def find_match(self, tree, maxhits=1, cache=None, target_traversal="preorder"):
         """ A pattern search continues until the number of specified matches are
         found.
@@ -431,13 +450,10 @@ class TreePattern(Tree):
                 break
 
 
-
 def test():
     '''
-
-            The + represents one or more nodes.
-
-            '''
+        The + represents one or more nodes.
+    '''
 
     # should not match any pattern
     t1 = PhyloTree(""" ((c,g)a) ; """, format=8, quoted_node_names=False)
@@ -502,8 +518,6 @@ def test():
 
     for i in range(0,len(trees)):
         print "tree" + str(i + 1)  + ": " + str(len(list(p6.find_match(trees[i]))) > 0)
-
-
 
 
 if __name__ == '__main__':
