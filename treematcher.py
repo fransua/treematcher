@@ -6,7 +6,13 @@ from sys import stderr
 # third party modules
 import ast
 import six
+#from ete3 import PhyloTree, Tree, NCBITaxa
+
+# developement modules
+import sys
+sys.path.append('/home/pi/Documents/github/ete/ete3/')
 from ete3 import PhyloTree, Tree, NCBITaxa
+from symbols import SYMBOL
 
 from symbols import SYMBOL
 
