@@ -267,6 +267,11 @@ class TreePattern(Tree):
         """
         self.syntax.cache = cache
         # does the target node match the root node of the pattern?
+
+        #check the zero intermediate node case.
+        if self.name == SYMBOL["zero_or_more"]:
+            self = self.children[0]
+
         status = self.is_local_match(node, cache)
 
         #print("match node {} to self {}".format(node.name, self.name))
@@ -349,11 +354,6 @@ class TreePattern(Tree):
                                 break
                             else:
                                 status = False
-                    elif self.name == SYMBOL["zero_or_more"]:
-                        for own_child in self.children:
-                            if len(own_child.children) == 0 and own_child.is_local_match(node, cache):
-                                status = True
-                                #sub_status_count += 1
                     if status and sub_status_count > 0:
                         break
 
