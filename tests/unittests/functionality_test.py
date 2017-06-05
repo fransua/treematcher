@@ -119,6 +119,7 @@ class Test_zero_or_more_functionality_test(unittest.TestCase):
         self.pattern  = TreePattern(""" ((c)*)a ;""", quoted_node_names=False)
         self.pattern2  = TreePattern(""" (((d)c)*)a ;""", quoted_node_names=False)
         self.pattern3 = TreePattern(""" ((((w)*)c)*)a ;""", quoted_node_names=False)
+        self.pattern4 = TreePattern(""" ((d)*)a ;""")
 
     # there is no intermediate node between 'c' and 'a' nodes.
     def test_no_match(self):
@@ -163,6 +164,9 @@ class Test_zero_or_more_functionality_test(unittest.TestCase):
         result = len(list(self.pattern3.find_match(self.t13)))
         self.assertTrue(result  > 0)
 
+    def test_direct_connection(self):
+        result = len(list(self.pattern3.find_match(self.t13)))
+        self.assertTrue(result > 0)
 
 if __name__ == '__main__':
     unittest.main()
