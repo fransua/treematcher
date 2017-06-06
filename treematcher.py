@@ -1,14 +1,23 @@
 #system modules
 import re
 from itertools import permutations
+from sys import stderr
 
 # third party modules
 import ast
 import six
+#from ete3 import PhyloTree, Tree, NCBITaxa
+
+# developement modules
+import sys
+sys.path.append('/home/pi/Documents/github/ete/ete3/')
 from ete3 import PhyloTree, Tree, NCBITaxa
+from symbols import SYMBOL
+
+from symbols import SYMBOL
 
 # internal modules
-# ...
+#...
 
 
 class TreePatternCache(object):
@@ -227,6 +236,8 @@ class TreePattern(Tree):
         # Set a default syntax controller if a custom one is not provided
         self.syntax = syntax if syntax else PatternSyntax()
 
+        # check the tree syntax.
+
     # FUNCTIONS EXPOSED TO USERS START HERE
     def match(self, node, cache=None):
         """
@@ -241,16 +252,18 @@ class TreePattern(Tree):
         """
         self.syntax.cache = cache
         # does the target node match the root node of the pattern?
+
+        #check the zero intermediate node case.
+        #assumes that SYMBOL["zero_or_more"] has only one child.
+        if self.name == SYMBOL["zero_or_more"]:
+            self = self.children[0]
+
         status = self.is_local_match(node, cache)
 
-        #print("match node {} to self {}".format(node.name, self.name))
-
         if not status:
-            if self.up is not None and self.up.name == '+':  # skip node by resetting pattern
+            if self.up is not None and (self.up.name == SYMBOL["one_or_more"] or self.up.name == SYMBOL["zero_or_more"]):  # skip node by resetting pattern
                 status = True
                 self = self.up
-
-        #print ("status is {} and self is {}".format(status, self.name))
 
         # if so, continues evaluating children pattern nodes against target node
         # children
@@ -260,30 +273,22 @@ class TreePattern(Tree):
 
                 #if the number of children do not match, find where they do and check that
                 nodes = []
-                #print("now checking children")
 
                 if len(node.children) < len(self.children):
-                    #print("len(node.children) {} < len(self.children) {} for node {} and self {}".format(len(node.children), len(self.children), node.name, self.name))
-                    #print(node)
-                    if self.name == '+':
+                    if self.name == SYMBOL["one_or_more"] or self.name == SYMBOL["zero_or_more"]:
                         count = 0
                         for skip_to_node in node.traverse(strategy="levelorder"):
                             # skip to node with correct number of children
-                            #print("Checking node {}".format(skip_to_node.name, len(skip_to_node.children)))
                             if len(skip_to_node.children) >= len(self.children):
                                 count += 1
                                 nodes += [skip_to_node]
-                                #print("################# skipped to node {}".format(skip_to_node.name))
                                 sisters = skip_to_node.get_sisters()
                                 if len(sisters) > 0:
                                    for sister in sisters:
-                                       #print("adding sister {} of skipped to node {}".format(sister.name, skip_to_node.name))
                                        nodes += [sister]
-                                       #print("nodes are now {}".format(nodes))
 
                                 break
                         if count < 1:
-                            #print("not enough target children found")
                             status = False
 
                     else:
@@ -304,16 +309,8 @@ class TreePattern(Tree):
 
                             for i in range(len(self.children)):
                                 st = self.children[i].match(candidate[i], cache)
-                                #print("st is {} and self is {}".format(st, self.name))
-
-                                #if parent in pattern is plus and there more children to check, keep going
-                                #if st == False and self.name == '+' and len(candidate[i].children)>0 and \
-                                #        any([len(sis.children) > 0 for sis in node.get_sisters()]):
-
-                                if st == False and self.name == '+' and len(candidate[i].children) > 0:
-                                    #print("######## skipping status")
+                                if st == False and (self.name == SYMBOL["one_or_more"] or self.name == SYMBOL["zero_or_more"]) and len(candidate[i].children) > 0:
                                     pass
-
 
                                 else:
                                     sub_status_count += 1
@@ -352,10 +349,11 @@ class TreePattern(Tree):
             # converts references to node itself
             constraint = self.name.replace('@', '__target_node')
 
-        elif '+' == self.name:
+        elif SYMBOL["one_or_more"] == self.name:
             # plus pattern node should match any target node
             constraint = ''
-
+        elif SYMBOL["zero_or_more"] == self.name:
+            constraint = ''
         else:
             # if no references to itself, let's assume we search an exact name
             # match (allows using regular newick string as patterns)
@@ -363,14 +361,8 @@ class TreePattern(Tree):
 
         try:
             st = eval(constraint, constraint_scope) if constraint else True
-            # if isinstance(st, six.string_types):
-            #     raise ValueError
-            # else:
-            #     st = bool(st)  # all sets return true
 
         except ValueError:
-            #raise ValueError("not a boolean result: %s. Check quoted_node_names." %
-            #                 (st))
             raise ValueError("not a boolean result: . Check quoted_node_names.")
 
         except (AttributeError, IndexError) as err:
@@ -380,24 +372,18 @@ class TreePattern(Tree):
             try:
                 # temporary fix. Can not access custom syntax on all nodes. Get it from the root node.
                 root_syntax = self.get_tree_root().syntax
-                # print("root_syntax is ", root_syntax)
                 constraint_scope = {attr_name: getattr(root_syntax, attr_name)
                                     for attr_name in dir(root_syntax)}
                 constraint_scope.update({"__target_node": target_node})
 
                 st = eval(constraint, constraint_scope) if constraint else True
-
-                # if isinstance(st, six.string_types):
-                #    raise ValueError
-                # else:
-                #    st = bool(st)  # all sets return true
                 return st
             except NameError as err:
                 raise NameError('Constraint evaluation failed at %s: %s' %
                          (target_node, err))
         else:
-            # self.syntax.__cache = None
             return st
+
 
     def find_match(self, tree, maxhits=1, cache=None, target_traversal="preorder"):
         """ A pattern search continues until the number of specified matches are
@@ -424,13 +410,10 @@ class TreePattern(Tree):
                 break
 
 
-
 def test():
     '''
-
-            The + represents one or more nodes.
-
-            '''
+        The + represents one or more nodes.
+    '''
 
     # should not match any pattern
     t1 = PhyloTree(""" ((c,g)a) ; """, format=8, quoted_node_names=False)
@@ -467,7 +450,7 @@ def test():
 
     # should match 1,3,4
     # does not match pattern 2 because (c,c) does not match (c,d)
-    t11 = PhyloTree("""  ( ((e, f, g) c) b, ((g, h, i)c) d) a ; """, format=8, quoted_node_names=False)
+    t11 = PhyloTree("""  ( ((e, f, g) c) b, ((g, (w)h, i)c) d) a ; """, format=8, quoted_node_names=False)
 
     pattern1 = TreePattern(""" ((c)+)a ;""", quoted_node_names=False)
     pattern2 = TreePattern(""" (('c','d')'+') 'a' ;""", quoted_node_names=True)
@@ -487,6 +470,14 @@ def test():
                 pattern_match += [tree_num+1]
         print(pattern_match == true_match[p_num])
 
+
+    print "\n"
+    p6 = TreePattern(""" ((c)*)a ;""", quoted_node_names=False)
+
+    trees = [t1,t2,t3,t4,t5,t11]
+
+    for i in range(0,len(trees)):
+        print "tree" + str(i + 1)  + ": " + str(len(list(p6.find_match(trees[i]))) > 0)
 
 
 if __name__ == '__main__':
