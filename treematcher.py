@@ -313,8 +313,8 @@ class TreePattern(Tree):
                                     pass
 
                                 else:
-                                    sub_status_count += 1
                                     sub_status &= st
+                                    if sub_status == True: sub_status_count += 1
 
                             if sub_status and sub_status_count > 0:
                                 status = True
