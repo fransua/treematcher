@@ -6,14 +6,7 @@ from sys import stderr
 # third party modules
 import ast
 import six
-#from ete3 import PhyloTree, Tree, NCBITaxa
-
-# developement modules
-import sys
-sys.path.append('/home/pi/Documents/github/ete/ete3/')
 from ete3 import PhyloTree, Tree, NCBITaxa
-from symbols import SYMBOL
-
 from symbols import SYMBOL
 
 # internal modules
@@ -238,6 +231,22 @@ class TreePattern(Tree):
 
         # check the tree syntax.
 
+    # Contains information about metacharacters.
+    def set_controller(self):
+        controller = {}
+
+        if self.name == SYMBOL["one_or_more"]: 
+            controller["allow_indirect_connection"] = True
+            controller["direct_connection_first"] = False
+        elif self.name == SYMBOL["zero_or_more"]:
+            controller["allow_indirect_connection"] = True
+            controller["direct_connection_first"] = True        
+        else: 
+            controller["allow_indirect_connection"] = False
+            controller["direct_connection_first"] = False
+
+        self.controller = controller
+
     # FUNCTIONS EXPOSED TO USERS START HERE
     def match(self, node, cache=None):
         """
@@ -255,13 +264,13 @@ class TreePattern(Tree):
 
         #check the zero intermediate node case.
         #assumes that SYMBOL["zero_or_more"] has only one child.
-        if self.name == SYMBOL["zero_or_more"]:
+        if self.controller["direct_connection_first"]:
             self = self.children[0]
 
         status = self.is_local_match(node, cache)
 
         if not status:
-            if self.up is not None and (self.up.name == SYMBOL["one_or_more"] or self.up.name == SYMBOL["zero_or_more"]):  # skip node by resetting pattern
+            if self.up is not None and self.up.controller["allow_indirect_connection"]:  # skip node by resetting pattern
                 status = True
                 self = self.up
 
@@ -275,7 +284,7 @@ class TreePattern(Tree):
                 nodes = []
 
                 if len(node.children) < len(self.children):
-                    if self.name == SYMBOL["one_or_more"] or self.name == SYMBOL["zero_or_more"]:
+                    if self.controller["allow_indirect_connection"]:
                         count = 0
                         for skip_to_node in node.traverse(strategy="levelorder"):
                             # skip to node with correct number of children
@@ -309,7 +318,7 @@ class TreePattern(Tree):
 
                             for i in range(len(self.children)):
                                 st = self.children[i].match(candidate[i], cache)
-                                if st == False and (self.name == SYMBOL["one_or_more"] or self.name == SYMBOL["zero_or_more"]) and len(candidate[i].children) > 0:
+                                if st == False and self.controller["allow_indirect_connection"] and len(candidate[i].children) > 0:
                                     pass
 
                                 else:
@@ -349,10 +358,8 @@ class TreePattern(Tree):
             # converts references to node itself
             constraint = self.name.replace('@', '__target_node')
 
-        elif SYMBOL["one_or_more"] == self.name:
-            # plus pattern node should match any target node
-            constraint = ''
-        elif SYMBOL["zero_or_more"] == self.name:
+        elif self.controller["allow_indirect_connection"]:
+            # pattern nodes that allow indirect connection should match any target node
             constraint = ''
         else:
             # if no references to itself, let's assume we search an exact name
@@ -397,6 +404,11 @@ class TreePattern(Tree):
         :param nested: for each match returned,
 
         """
+
+        # sets the controller for every node.
+        # should chagne if only is a metacharacter acording to benchmarking tests.
+        for node in self.traverse():
+            node.set_controller()
 
         num_hits = 0
         for node in tree.traverse(target_traversal):
