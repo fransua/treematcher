@@ -1,3 +1,4 @@
+# a dictionary of metacharacters and their meaning.
 SYMBOL = {
 	'node_reference': '@',
 	'is_root': '^',
@@ -5,8 +6,4 @@ SYMBOL = {
 	'zero_or_more': '*',
 	'one_or_more': '+',
 	'zero_or_one': '?'
-#<<<<<<< HEAD
 }
-#=======
-#}
-#>>>>>>> 68441ea7045d8fc667298d6910cc57e309313887
