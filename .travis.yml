@@ -14,3 +14,4 @@ install:
 
 script:
   - python test_treematcher.py
+  - python functionality_test.py
