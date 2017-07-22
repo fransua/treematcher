@@ -234,18 +234,18 @@ class TreePattern(Tree):
 
         # check the tree syntax.
 
-    def is_in_bounds(self, bound):
+    def is_in_bounds(self, bound, test):
         """
         Checks in case of indirect connection the current node is inside the bounds.
         :param bound: specifies what bound to test
         """
 
         if bound == 'low':
-            return self.controller["skipped"] >= self.controller["low"]
+            return test >= self.controller["low"]
         elif bound == 'high':
             if self.controller["high"] >= 0:
                 # high bound has to be less but not equal, because it performs a 'can skip one more' test.
-                return self.controller["skipped"] < self.controller["high"]
+                return test <= self.controller["high"]
         return True
 
     def find_extreme_case(self, match_list):
@@ -367,31 +367,11 @@ class TreePattern(Tree):
             if len(expressions[i]) > 0 and all(letter.isalpha() for letter in expressions[i]):
                 expressions[i] = '@.name == "' + expressions[i] + '"'
 
-        # prevents the " _expressions_ ... and  __empty_exp__ " case 
+        # prevents the " _expressions_ ... and  __empty_exp__ " case
         return " and ".join(exp for exp in expressions if len(exp) > 0)
 
-
-    def set_controller(self):
-        """
-        Creates a dictionary that contains information about a node.
-        That information is about how a node interacts with the tree topology.
-        It describes how the metacharacter connects with the rest of nodes and
-        if it is leaf or root.
-        """
+    def define_skipping_properties(self, metacharacters):
         controller = {}
-
-        metacharacters = []
-        if len(self.name) > 0:
-            metacharacters = self.parse_metacharacters()
-
-        # bounds, (already) skipped nodes values and connection properties.
-        controller["low"] = 0
-        controller["high"] = -1
-        controller["skipped"] = 0
-        controller["single_match"] = False
-        controller["allow_indirect_connection"] = False
-        controller["direct_connection_first"] = False
-
 
         for metacharacter in metacharacters:
 
@@ -421,18 +401,45 @@ class TreePattern(Tree):
                 if controller["low"]  == 0: controller["direct_connection_first"] = True
                 else: controller["direct_connection_first"] = False
 
+        return controller
+
+    def set_controller(self):
+        """
+        Creates a dictionary that contains information about a node.
+        That information is about how a node interacts with the tree topology.
+        It describes how the metacharacter connects with the rest of nodes and
+        if it is leaf or root.
+        """
+        controller = {}
+
+        metacharacters = []
+        if len(self.name) > 0:
+            metacharacters = self.parse_metacharacters()
+
+        # bounds, (already) skipped nodes values and connection properties.
+        controller["low"] = 0
+        controller["high"] = -1
+        controller["skipped"] = 0
+        controller["single_match"] = False
+        controller["allow_indirect_connection"] = False
+        controller["direct_connection_first"] = False
+
+        properties = self.define_skipping_properties(metacharacters)
+        controller.update(properties)
+
         # transform node name to python expression
         self.name = self.parse_node_name()
 
-        # transform sets to the corresponding code
-        if SET["any_child"] in self.name:
-            self.name = " any( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["any_child"], "x") + " for x in __target_node.children)"
-        if SET["children"] in self.name:
-            self.name = " all( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["children"], "x") + " for x in __target_node.children)"
-        if SET["all_nodes"] in self.name:
-            controller["single_match"] = True
-            controller["single_match_contstraint"] = self.name
-            self.name = '@'
+        if not self.is_leaf():
+            # transform sets to the corresponding code
+            if SET["any_child"] in self.name:
+                self.name = " any( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["any_child"], "x") + " for x in __target_node.children)"
+            if SET["children"] in self.name:
+                self.name = " all( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["children"], "x") + " for x in __target_node.children)"
+            if SET["all_nodes"] in self.name:
+                controller["single_match"] = True
+                controller["single_match_contstraint"] = self.name
+                self.name = '@'
 
         self.controller = controller
         return self.controller["single_match"]
@@ -454,13 +461,13 @@ class TreePattern(Tree):
 
         #check the zero intermediate node case.
         #assumes that SYMBOL["zero_or_more"] has only one child.
-        if self.controller["direct_connection_first"]:
+        if self.controller["direct_connection_first"] and not self.is_leaf():
             self = self.children[0]
 
         status = self.is_local_match(node, cache)
 
-        if not status:
-            if self.up is not None and self.up.controller["allow_indirect_connection"] and self.up.is_in_bounds("high"):  # skip node by resetting pattern
+        if not status and not self.is_leaf():
+            if self.up is not None and self.up.controller["allow_indirect_connection"] and self.up.is_in_bounds("high", self.controller["skipped"] + 1):  # skip node by resetting pattern
                 status = True
                 self = self.up
                 self.controller["skipped"] += 1
@@ -507,24 +514,58 @@ class TreePattern(Tree):
                     if len(node.children) >= len(self.children):
                         for candidate in permutations(node.children):
                             sub_status = True
+                            current_matched = 0
+                            continious_matched = []
+                            test_children_properties = False
 
-                            for i in range(len(self.children)):
-                                st = self.children[i].match(candidate[i], cache)
-                                if st and not self.is_in_bounds("low"):
-                                    # in case it matches, but has exited the lower bound (in case it exist), force False the match
-                                    st = False
-                                if st == False and self.controller["allow_indirect_connection"] and len(candidate[i].children) > 0:
-                                    pass
+                            i = 0
+                            j = 0
+                            while i < len(self.children):
+                                st = self.children[i].match(candidate[j], cache)
 
-                                else:
-                                    sub_status &= st
-                                    if sub_status == True: sub_status_count += 1
+                                if self.children[i].is_leaf() and self.children[i].controller["allow_indirect_connection"]:
+                                    test_children_properties = True
+                                    if st:
+                                        current_matched += 1
+                                    j += 1
+                                    if j < len(candidate):
+                                        continue
+                                    else:
+                                        if current_matched > 0: continious_matched += [current_matched]
+                                        current_matched = 0
+                                else :
+                                    if st and not self.is_in_bounds("low", self.controller["skipped"]):
+                                        # in case it matches, but has exited the lower bound (in case it exist), force False the match
+                                        st = False
+                                    if st == False and self.controller["allow_indirect_connection"] and len(candidate[i].children) > 0:
+                                        pass
+                                    else:
+                                        sub_status &= st
+                                        if sub_status: sub_status_count += 1
+                                i += 1
+                                j += 1
 
-                            if sub_status and sub_status_count > 0:
+                            if test_children_properties:
+                                continue
+                            elif sub_status and sub_status_count > 0:
                                 status = True
                                 break
                             else:
                                 status = False
+
+                        if test_children_properties:
+                            sub_sub_status = False
+                            if len(continious_matched) > 0 :
+                                for con_matches in continious_matched:
+                                    low_test = self.children[-1].is_in_bounds("low", con_matches)
+                                    high_test = self.children[-1].is_in_bounds("high", con_matches)
+                                    sub_sub_status |= low_test and high_test
+                                    sub_status = sub_sub_status
+                            if not self.children[-1].controller["direct_connection_first"]:
+                                sub_status = sub_sub_status
+                            status = sub_status
+                            if sub_status: sub_status_count += 1
+
                     if status and sub_status_count > 0:
                         break
 
@@ -652,9 +693,9 @@ class TreePattern(Tree):
 
 def test():
     print "compiled.\nrun /test/test_metacharacters.py and /test/test_logical_comparison.py to test."
-    t3 = PhyloTree(""" ((d,c)b)a ; """, format=8, quoted_node_names=False)
-    pattern1 = TreePattern(""" (('c, @.dist == 1')'+')'a, ^' ;""", quoted_node_names=True)
+    t3 = PhyloTree(""" ((d,c, e)b)a ; """, format=8, quoted_node_names=False)
 
+    pattern1 = TreePattern(""" (('c', '@.dist == 1, {3-5}')'+')'a, ^' ;""", quoted_node_names=True)
     print len(list(pattern1.find_match(t3))) > 0
 
 
