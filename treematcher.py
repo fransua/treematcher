@@ -466,8 +466,10 @@ class TreePattern(Tree):
 
         status = self.is_local_match(node, cache)
 
-        if not status and not self.is_leaf():
-            if self.up is not None and self.up.controller["allow_indirect_connection"] and self.up.is_in_bounds("high", self.controller["skipped"] + 1):  # skip node by resetting pattern
+        if not status:
+            if self.controller["allow_indirect_connection"] and self.is_leaf():
+                pass
+            elif self.up is not None and self.up.controller["allow_indirect_connection"] and self.up.is_in_bounds("high", self.up.controller["skipped"] + 1 ):  # skip node by resetting pattern
                 status = True
                 self = self.up
                 self.controller["skipped"] += 1
@@ -695,9 +697,8 @@ def test():
     print "compiled.\nrun /test/test_metacharacters.py and /test/test_logical_comparison.py to test."
     t3 = PhyloTree(""" ((d,c, e)b)a ; """, format=8, quoted_node_names=False)
 
-    pattern1 = TreePattern(""" (('c', '@.dist == 1, {3-5}')'+')'a, ^' ;""", quoted_node_names=True)
+    pattern1 = TreePattern(""" (('c', '@.dist == 1, {2-5}')'+')'a, ^' ;""", quoted_node_names=True)
     print len(list(pattern1.find_match(t3))) > 0
-
 
 if __name__ == '__main__':
     test()
