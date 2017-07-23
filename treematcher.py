@@ -385,6 +385,7 @@ class TreePattern(Tree):
             if metacharacter == SYMBOL["one_or_more"]:
                 controller["allow_indirect_connection"] = True
                 controller["direct_connection_first"] = False
+                controller["low"] = 1
             elif metacharacter == SYMBOL["zero_or_more"]:
                 controller["allow_indirect_connection"] = True
                 controller["direct_connection_first"] = True
@@ -430,16 +431,16 @@ class TreePattern(Tree):
         # transform node name to python expression
         self.name = self.parse_node_name()
 
-        if not self.is_leaf():
-            # transform sets to the corresponding code
-            if SET["any_child"] in self.name:
-                self.name = " any( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["any_child"], "x") + " for x in __target_node.children)"
-            if SET["children"] in self.name:
-                self.name = " all( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["children"], "x") + " for x in __target_node.children)"
-            if SET["all_nodes"] in self.name:
-                controller["single_match"] = True
-                controller["single_match_contstraint"] = self.name
-                self.name = '@'
+        # review scope
+        # transform sets to the corresponding code
+        if SET["any_child"] in self.name:
+            self.name = " any( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["any_child"], "x") + " for x in __target_node.children)"
+        if SET["children"] in self.name:
+            self.name = " all( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["children"], "x") + " for x in __target_node.children)"
+        if SET["all_nodes"] in self.name:
+            controller["single_match"] = True
+            controller["single_match_contstraint"] = self.name
+            self.name = '@'
 
         self.controller = controller
         return self.controller["single_match"]
@@ -514,18 +515,20 @@ class TreePattern(Tree):
                 for node in nodes:
                     sub_status_count = 0
                     if len(node.children) >= len(self.children):
+                        test_children_properties = False
+                        continious_matched = []
                         for candidate in permutations(node.children):
                             sub_status = True
                             current_matched = 0
-                            continious_matched = []
-                            test_children_properties = False
 
                             i = 0
                             j = 0
                             while i < len(self.children):
                                 st = self.children[i].match(candidate[j], cache)
 
-                                if self.children[i].is_leaf() and self.children[i].controller["allow_indirect_connection"]:
+                                #print "testing: " + self.children[i].name + " -- " + candidate[j].name + " -- st: " + str(st) + " -- subst: " + str(sub_status)
+
+                                if self.children[i].is_leaf() and self.children[i].controller["allow_indirect_connection"] and sub_status: # REVIEW ME
                                     test_children_properties = True
                                     if st:
                                         current_matched += 1
@@ -533,6 +536,7 @@ class TreePattern(Tree):
                                     if j < len(candidate):
                                         continue
                                     else:
+                                        #print "updating " + str(current_matched) + " to " + str(continious_matched)
                                         if current_matched > 0: continious_matched += [current_matched]
                                         current_matched = 0
                                 else :
@@ -554,15 +558,16 @@ class TreePattern(Tree):
                                 break
                             else:
                                 status = False
-
                         if test_children_properties:
                             sub_sub_status = False
+                            #print continious_matched
                             if len(continious_matched) > 0 :
                                 for con_matches in continious_matched:
                                     low_test = self.children[-1].is_in_bounds("low", con_matches)
                                     high_test = self.children[-1].is_in_bounds("high", con_matches)
                                     sub_sub_status |= low_test and high_test
-                                    sub_status = sub_sub_status
+                                sub_status = sub_sub_status
+                            #print "exited with sub_sub_status: " + str(sub_status)
                             if not self.children[-1].controller["direct_connection_first"]:
                                 sub_status = sub_sub_status
                             status = sub_status
@@ -695,9 +700,9 @@ class TreePattern(Tree):
 
 def test():
     print "compiled.\nrun /test/test_metacharacters.py and /test/test_logical_comparison.py to test."
-    t3 = PhyloTree(""" ((d,c, e)b)a ; """, format=8, quoted_node_names=False)
+    t3 = PhyloTree(""" ((c, d, e, f)b)a ; """, format=8, quoted_node_names=False)
 
-    pattern1 = TreePattern(""" (('c', '@.dist == 1, {2-5}')'+')'a, ^' ;""", quoted_node_names=True)
+    pattern1 = TreePattern(""" (('d', '+')'b')'a, ^' ;""", quoted_node_names=True)
     print len(list(pattern1.find_match(t3))) > 0
 
 if __name__ == '__main__':
