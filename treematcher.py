@@ -568,8 +568,10 @@ class TreePattern(Tree):
                                     sub_sub_status |= low_test and high_test
                                 sub_status = sub_sub_status
                             #print "exited with sub_sub_status: " + str(sub_status)
-                            if not self.children[-1].controller["direct_connection_first"]:
-                                sub_status = sub_sub_status
+                            #if not self.children[-1].controller["direct_connection_first"]:
+                            elif self.children[-1].controller["direct_connection_first"]:
+                                sub_sub_status = True
+                            sub_status = sub_sub_status
                             status = sub_status
                             if sub_status: sub_status_count += 1
 
@@ -702,7 +704,11 @@ def test():
     print "compiled.\nrun /test/test_metacharacters.py and /test/test_logical_comparison.py to test."
     t3 = PhyloTree(""" ((c, d, e, f)b)a ; """, format=8, quoted_node_names=False)
 
-    pattern1 = TreePattern(""" (('d', '+')'b')'a, ^' ;""", quoted_node_names=True)
+    (t3&'c').dist = 0.5
+    (t3&'e').dist = 0.5
+    (t3&'f').dist = 0.5
+
+    pattern1 = TreePattern(""" (('d', '@.dist > 0.5, *')'b')'a, ^' ;""", quoted_node_names=True)
     print len(list(pattern1.find_match(t3))) > 0
 
 if __name__ == '__main__':
