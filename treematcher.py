@@ -183,7 +183,7 @@ class TreePattern(Tree):
         # Load the pattern string as a normal ETE tree, where node names are
         # python expressions
         super(TreePattern, self).__init__(newick, format, dist, support, name, quoted_node_names)
-
+        
         # Set a default syntax controller if a custom one is not provided
         self.syntax = syntax if syntax else PatternSyntax()
         self.controller = None
@@ -711,12 +711,67 @@ def children_match(tnode, pnode, c2nodes):
 
     return False
 
+def expand_loose_connection_aliases(nw):
+    def find_first_unmatched_closing_par(string):
+        open_par = 0
+        for i, ch in enumerate(string):
+            if ch == '(':
+                open_par += 1
+            elif ch == ')':
+                if open_par == 0:
+                    return i
+                open_par -= 1
+        return -1
+    chunks = []
+    i = 0
+    while True:
+        next_split = nw[i:].find('^')
+        if next_split == -1:
+            chunks.append(nw[i:])
+            break
+
+        chunks.append(nw[i:next_split])
+        chunks.append(',')
+
+        i += next_split + 1
+        ipoint = find_first_unmatched_closing_par(nw[i:])
+        chunks.append(nw[i:i+ipoint+1])
+        chunks.append('^')
+        i += ipoint + 1
+
+    return ''.join(chunks)
+
+def loose_connection_nodes(tree):
+    nodes = []
+    for n in tree.traverse():
+        if n.name.startswith('^'):
+            nodes.append(n)
+    return nodes
+
+
+def find_matches(tree, pattern):
+    #for n in split_by_loose_connection(pattern):
+    #    print n
+
+    for n in pattern.traverse():
+        n.init_controller()
+
+    c2nodes = compute_match_matrix(pattern, tree)
+    for root in c2nodes[p1.constraint]:
+        if children_match(root, p1, c2nodes):
+            print "MATCH"
+            print root
     
-            
+
 def test():
+    #nw = expand_loose_connection_aliases('(  ( (A,B) ^ (C,D) ) ^ C);')
+
     t1 = Tree("(((A, (B,C,D)), ((B,C), A)), F);")
     p1 = TreePattern("((C,B,D), A);")
 
+
+
+    
     #t1 = Tree("(a, b, b, a);")
     #p1 = TreePattern("(a, a, b);")
 
@@ -727,15 +782,6 @@ def test():
     #t1 = Tree("(  (((B,H), (B,B,H), C), A), (K, J));")
     #p1 = TreePattern("((C, (B,H), (B,H)), A);")
 
-    print p1
-    for n in p1.traverse():
-        n.init_controller()
-
-    c2nodes = compute_match_matrix(p1, t1)
-    for root in c2nodes[p1.constraint]:
-        if children_match(root, p1, c2nodes):
-            print "MATCH"
-            print root
-    
+    find_matches(t1, p1)    
 if __name__ == '__main__':
     test()
