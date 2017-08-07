@@ -340,7 +340,7 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
     (pnode), handling min and max number of occurrences. pnode should not
     contain loose connections
     '''
-
+    
     # If no children expected in pattern node, return True, as local
     # conditions have already been checked
     if not pnode.children:
@@ -350,14 +350,15 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
 
     matches = []
     matched_children = set()
+    constraint2max_occur = defaultdict(lambda: [set(), 0])
     for pnode_ch in pnode.children:
         match_nodes = c2nodes[pnode_ch.constraint] & t_children
-
-        if len(match_nodes) > pnode_ch.max_occur:
-            return False
+        constraint2max_occur[pnode_ch.constraint][0].update(match_nodes)
+        constraint2max_occur[pnode_ch.constraint][1] += pnode_ch.max_occur
 
         # at least a node matching each pattern constraint
         if not match_nodes and pnode_ch.min_occur > 0:
+            #print 1
             return False
 
         # Record all children nodes with matches
@@ -371,33 +372,46 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
 
     # there should be nodes without a match
     if len(matched_children) < len(t_children):
+        #print 2
         return False
+
+    # Check accumulated occurances of constraint matches do not exceed max
+    # occurrences
+    for ob, ex in constraint2max_occur.values():
+        if len(ob) > ex:
+            #print 3
+            return False
 
     # Let's check if there is a non-overlapping combination of nodes matches
     # satisfies patterns. For instance, avoid cases where one node matches the
     # two required patterns
     for comb in itertools.product(*matches):
         valid = set()
-        match = comb
+        potential_match = comb
         for x in comb:
             x = set(x)
             inter =  valid & set(x)
             if not inter:
                 valid.update(x)
             else:
-                match = None
+                potencial_match = None
                 # let's check next comb
                 break
 
-        if match:
+        if potential_match:
+            match = True
             # Let's check inside the node
             for i, pnode_ch in enumerate(pnode.children):
-                for tnode_ch in match[i]:
+                for tnode_ch in potential_match[i]:
                     if tnode_ch is None:
                         continue
                     if not children_match(tnode_ch, pnode_ch, c2nodes):
-                        return False
-            return True
+                        match = False
+                        break
+                if not match:
+                    break
+            if match:
+                return True
 
     return False
 
@@ -571,6 +585,10 @@ def test():
             print m, '*MATCH*'
         raw_input()
 
+    t1 = Tree("(((A, A2), (B,C)), K);") 
+    p1 = TreePattern("(((A, A2), (B,C)), K);")
+    print_matches(t1, p1)
+        
     # ^ after a ) means that the two children of that node can be connected by
     # any number of internal up/down nodes
     t1 = Tree("(  ((B,Z), (D,F)), G);")
