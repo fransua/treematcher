@@ -1,6 +1,6 @@
 import re
 import itertools
-from collections import defaultdict, deque
+from collections import defaultdict, OrderedDict
 
 import six
 import copy
@@ -222,7 +222,6 @@ class TreePattern(Tree):
         elif raw_constraint.endswith('}'):
             exp = '\{\s*(\d+)\s*,\s*(\d+)\s*\}'
             s = re.search(exp, raw_constraint)
-            print s
             if s:
                 minv, maxv = map(int, s.groups())
                 self.min_occur = minv
@@ -236,8 +235,13 @@ class TreePattern(Tree):
             self.min_occur = 1
             self.max_occur = 1
 
-                
-        return raw_constraint
+        if raw_constraint.startswith('^') and self.children:
+            self.loose_children = True
+            raw_constraint = raw_constraint[1:]
+        else:
+            self.loose_children = False
+
+        return raw_constraint.strip()
 
     def parse_node_name(self):
         """transforms node.name into an evaluable python expression. Metachars are also
@@ -248,8 +252,10 @@ class TreePattern(Tree):
         # Translate alias and shortcut expressions in clean names
         if '@' not in clean_name:
             constraint = '__target_node.name == "%s"' %clean_name
-        else:
+        elif clean_name:
             constraint = self.constraint.replace('@', '__target_node')
+        else:
+            constraint = 'True'
 
         if self.children:
             constraint = '(%s) and __target_node.children' %constraint
@@ -313,7 +319,6 @@ class TreePattern(Tree):
             return st
 
 
-
 # NEW APPROACH
 
 def compute_match_matrix(pattern, tree):
@@ -326,7 +331,7 @@ def compute_match_matrix(pattern, tree):
     #    print "%s\n   %s" %(k, v)
     return c2nodes
 
-def children_match(tnode, pnode, c2nodes):
+def children_match(tnode, pnode, c2nodes, loose_constraint=None):
     # If not children expected in pattern node, return True, as local
     # conditions have already been checked
     if not pnode.children:
@@ -334,11 +339,11 @@ def children_match(tnode, pnode, c2nodes):
 
     t_children = set(tnode.children)
 
-
     matches = []
     matched_children = set()
     for pnode_ch in pnode.children:
         match_nodes = c2nodes[pnode_ch.constraint] & t_children
+
         if len(match_nodes) > pnode_ch.max_occur:
             return False
 
@@ -349,7 +354,7 @@ def children_match(tnode, pnode, c2nodes):
         # Record all children nodes with matches
         matched_children.update(match_nodes)
 
-        # And prepare all permutations of matching in node with minimum occurrences
+        # And prepare all permutations of matches in node with minimum occurrences
         if not match_nodes and pnode_ch.min_occur == 0:
             matches.append([[None]])
         else:
@@ -378,12 +383,11 @@ def children_match(tnode, pnode, c2nodes):
         if match:
             # Let's check inside the node
             for i, pnode_ch in enumerate(pnode.children):
-
-                for node_ch in match[i]:
-                    if node_ch is None:
+                for tnode_ch in match[i]:
+                    if tnode_ch is None:
                         continue
-                    if not children_match(node_ch, pnode_ch, c2nodes):
-                        return False 
+                    if not children_match(tnode_ch, pnode_ch, c2nodes):
+                        return False
             return True
 
     return False
@@ -418,52 +422,110 @@ def expand_loose_connection_aliases(nw):
 
     return ''.join(chunks)
 
-def loose_connection_nodes(tree):
-    nodes = []
-    for n in tree.traverse():
-        if n.name.startswith('^'):
-            nodes.append(n)
-    return nodes
+def loose_connection_nodes(pattern):
+    to_visit = set()
+    current_group = []
+
+    pnode2content = pattern.get_cached_content(leaves_only=False)
+    for n in list(pattern.traverse()):
+        if n.loose_children:
+            for ch in n.get_children():
+                if not ch.loose_children:
+                    to_visit.add(ch.detach())
+                else:
+                    ch.detach()
+        elif n is pattern:
+            to_visit.add(pattern)
+
+    expected_groups = set()
+    for p, content in pnode2content.iteritems():
+        c = frozenset(content & to_visit)
+        if len(c) > 1:
+            expected_groups.add(c)
+    return to_visit, expected_groups, pnode2content
 
 
 def find_matches(tree, pattern):
-    #for n in loose_connection_nodes(pattern):
-    #    print n
+    print '-'*80
+    print tree, 'Target Tree'
+    print pattern, 'pattern'
 
     for n in pattern.traverse():
         n.init_controller()
-    print '-'*80
-    print tree
-    print pattern.write(format=9)
+
     c2nodes = compute_match_matrix(pattern, tree)
-    for root in c2nodes[pattern.constraint]:
-        if children_match(root, pattern, c2nodes):
-            print "MATCH"
-            print root
-    
+    root2matches = OrderedDict()
+    to_visit, expected_groups, pnode2content = loose_connection_nodes(pattern)
+
+    for proot in to_visit:
+        matches = []
+        for match_node in c2nodes[proot.constraint]:
+            if children_match(match_node, proot, c2nodes):
+                matches.append(match_node)
+        if not matches:
+            raise StopIteration
+
+        root2matches[proot]=matches
+
+    if len(root2matches) == 1:
+        for match in root2matches[proot]:
+            print match, "MATCH"
+            yield match
+        raise StopIteration
+
+    p2index = {p:i for i,p in enumerate(root2matches.keys())}
+    to_visit = set(to_visit)
+    for nodes in itertools.product(*root2matches.values()):
+        ancestors = list()
+        if len(nodes) != len(set(nodes)):
+            continue
+        is_match = True
+        for group in expected_groups:
+            observed_group =  [nodes[p2index[v]] for v in group]
+            anc = tree.get_common_ancestor(observed_group)
+            if anc not in ancestors:
+                ancestors.append(anc)
+            else:
+                is_match = False
+                break
+        if is_match:
+            print ancestors[0], 'MATCH'
+            yield ancestors[0]
+
+
 
 def test():
+    t1 = Tree("(  ((B,Z), (D,F)), G);")
+    p1 = TreePattern("( (B,Z), G)^;")
+    list(find_matches(t1, p1))
+    raw_input()
+
+
+    t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
+    p1 = TreePattern("(((B,Z)^,C), G)^;")
+    list(find_matches(t1, p1))
+    raw_input()
 
     t1 = Tree("(((A, (B,C,D)), ((B,C), A)), F);")
     p1 = TreePattern("((C,B,D*), A);")
-    find_matches(t1, p1)    
+    list(find_matches(t1, p1))
     raw_input()
-    
+
     t1 = Tree("(((A, (B,C,D, D, D)), ((B,C), A)), F);")
     p1 = TreePattern("((C,B,'D{2,3}'), A);")
-    find_matches(t1, p1)    
+    list(find_matches(t1, p1))
     raw_input()
-    
+
     t1 = Tree("(a, b, b, a);")
     p1 = TreePattern("(a+, b+);")
-    find_matches(t1, p1)    
+    list(find_matches(t1, p1))
     raw_input()
-    
+
     t1 = Tree("((a, b), c);")
     p1 = TreePattern("((a, b, d*), c);")
     find_matches(t1, p1)
     raw_input()
-    
+
     t1 = Tree("(  (((B,H), (B,B,H), C), A), (K, J));")
     p1 = TreePattern("((C, (B+,H)+), A);")
     find_matches(t1, p1)
