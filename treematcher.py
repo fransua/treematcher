@@ -318,21 +318,30 @@ class TreePattern(Tree):
         else:
             return st
 
+    def find_match(self, t):
+        return find_matches(t, self)
+        
+        
 
 # NEW APPROACH
-
 def compute_match_matrix(pattern, tree):
+    '''Computes a dictionary where keys are all the constraints observed in a
+    pattern and values all nodes matching those patterns.'''
+
     c2nodes = defaultdict(set)
     for n in tree.traverse():
         for cn in pattern.traverse():
             if cn.is_local_match(n, None):
                 c2nodes[cn.constraint].add(n)
-    #for k,v in c2nodes.items():
-    #    print "%s\n   %s" %(k, v)
     return c2nodes
 
 def children_match(tnode, pnode, c2nodes, loose_constraint=None):
-    # If not children expected in pattern node, return True, as local
+    '''returns True if a subtree (tnode) matches recursively a given pattern
+    (pnode), handling min and max number of occurrences. pnode should not
+    contain loose connections
+    '''
+
+    # If no children expected in pattern node, return True, as local
     # conditions have already been checked
     if not pnode.children:
         return True
@@ -392,6 +401,79 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
 
     return False
 
+def split_by_loose_nodes(pattern):
+    '''split a pattern tree into all subpatterns connected through loose connections
+    (allowing multiple intermediate between them). '''
+
+    pnode2content = pattern.get_cached_content(leaves_only=False)
+
+    # split pattern by loose nodes and store a list of partitions that can be
+    # used for strict matches
+    to_visit = set()
+    for n in list(pattern.traverse()):
+        if n.loose_children:
+            for ch in n.get_children():
+                if not ch.loose_children:
+                    to_visit.add(ch.detach())
+                else:
+                    ch.detach()
+        elif n is pattern:
+            to_visit.add(pattern)
+
+    # Calculate expected groupings of the split partitions
+    expected_groups = set()
+    for p, content in pnode2content.iteritems():
+        c = frozenset(content & to_visit)
+        if len(c) > 1:
+            expected_groups.add(c)
+
+    return to_visit, sorted(expected_groups, key=lambda x: len(x))
+
+
+def find_matches(tree, pattern):
+    '''Iterate over all possible matches of pattern in tree'''
+
+    for n in pattern.traverse():
+        n.init_controller()
+
+    c2nodes = compute_match_matrix(pattern, tree)
+    root2matches = OrderedDict()
+    to_visit, expected_groups = split_by_loose_nodes(pattern)
+
+
+    for proot in to_visit:
+        matches = []
+        for match_node in c2nodes[proot.constraint]:
+            if children_match(match_node, proot, c2nodes):
+                matches.append(match_node)
+        if not matches:
+            raise StopIteration
+
+        root2matches[proot]=matches
+
+    if len(root2matches) == 1:
+        for match in root2matches[proot]:
+            yield match
+        raise StopIteration
+
+    p2index = {p:i for i,p in enumerate(root2matches.keys())}
+    to_visit = set(to_visit)
+    for nodes in itertools.product(*root2matches.values()):
+        ancestors = list()
+        if len(nodes) != len(set(nodes)):
+            continue
+        is_match = True
+        for group in expected_groups:
+            observed_group = [nodes[p2index[v]] for v in group]
+            anc = tree.get_common_ancestor(observed_group)
+            if anc not in ancestors:
+                ancestors.append(anc)
+            else:
+                is_match = False
+                break
+        if is_match:
+            yield ancestors[-1]
+
 def expand_loose_connection_aliases(nw):
     def find_first_unmatched_closing_par(string):
         open_par = 0
@@ -422,119 +504,106 @@ def expand_loose_connection_aliases(nw):
 
     return ''.join(chunks)
 
-def loose_connection_nodes(pattern):
-    to_visit = set()
-    current_group = []
-
-    pnode2content = pattern.get_cached_content(leaves_only=False)
-    for n in list(pattern.traverse()):
-        if n.loose_children:
-            for ch in n.get_children():
-                if not ch.loose_children:
-                    to_visit.add(ch.detach())
-                else:
-                    ch.detach()
-        elif n is pattern:
-            to_visit.add(pattern)
-
-    expected_groups = set()
-    for p, content in pnode2content.iteritems():
-        c = frozenset(content & to_visit)
-        if len(c) > 1:
-            expected_groups.add(c)
-    return to_visit, sorted(expected_groups, key=lambda x: len(x))
 
 
-def find_matches(tree, pattern):
-    print '-'*80
-    print tree, 'Target Tree'
-    print pattern, 'pattern'
-
-    for n in pattern.traverse():
-        n.init_controller()
-
-    c2nodes = compute_match_matrix(pattern, tree)
-    root2matches = OrderedDict()
-    to_visit, expected_groups = loose_connection_nodes(pattern)
-
-    for proot in to_visit:
-        matches = []
-        for match_node in c2nodes[proot.constraint]:
-            if children_match(match_node, proot, c2nodes):
-                matches.append(match_node)
-        if not matches:
-            raise StopIteration
-
-        root2matches[proot]=matches
-
-    if len(root2matches) == 1:
-        for match in root2matches[proot]:
-            print match, "MATCH"
-            yield match
-        raise StopIteration
-
-    p2index = {p:i for i,p in enumerate(root2matches.keys())}
-    to_visit = set(to_visit)
-    for nodes in itertools.product(*root2matches.values()):
-        ancestors = list()
-        if len(nodes) != len(set(nodes)):
-            continue
-        is_match = True
-        for group in expected_groups:
-            observed_group = [nodes[p2index[v]] for v in group]
-            anc = tree.get_common_ancestor(observed_group)
-            if anc not in ancestors:
-                ancestors.append(anc)
-            else:
-                is_match = False
-                break
-        if is_match:
-            print ancestors[-1], 'MATCH'
-            yield ancestors[-1]
-
+# Facts:
+#   1) A pattern is a tree structure expressed in newick format.
+#
+#   2) Every pattern node is associated to an attributes constraint, which is
+#   expressed and pattern node name and can be a python expression.
+#
+#   3) The pattern topology is also used as a constraint. If no special symbols
+#   are used, a strict match of topology (parent-node relationships) is
+#   necessary to have a match
+# 
+#   4) The symbol '+' at the end of a pattern node constraint expression
+#   indicates that ONE OR MORE nodes like the one specified can exist as SISTER
+#   nodes
+#
+#   5) The syntax '{min,max}' at the end of a pattern node constraint
+#   expression indicates that between MIN and MAX number of nodes matching the
+#   constraint can exist as SISTER nodes
+#
+#   6) The symbol '*' at the end of a pattern node constraint expression
+#   indicates that the between 0 and INFINITY number of nodes matching the
+#   constraint can exist as SISTER nodes
+#
+#   7) The modifier symbols cab be used both in terminal and internal nodes.
+#   When used in internal nodes, they refer to the whole partition defined by
+#   the node.
+#
+#   8) To express that two terminal or internal nodes can be linked by an
+#   arbitrary number of connections (so called a LOOSE CONNECTION), the symbol
+#   '^' should be added to their parent nodes
+#
+# How the matching algorithm works:
+#
+# The problem of finding matches is subdivided into three sub-problems:
+#
+#  A1) finding matches of the strict pattern expressions (no looses connections contained).
+#
+#  A1.1) The original pattern is split into pieces (sub-patterns) that contain
+#  no loose connections. This is mostly done by the `split_by_loose_nodes()` function 
+#
+#  A1.2) Each sub-pattern is treated individually and used as input for A2.
+#
+#  A2) find exact matches of a sub-pattern in a tree
+#
+#   A2.1) Recursive search starting from the root node of the sub-pattern and
+#   descending through. Each pattern node is evaluated to check if their
+#   children combination exist in the target tree. 
+#
+#   Which TREE nodes match each children PATTERN node.
+#   Fails if:
+#     if any child pattern nodes cannot find min and max number of nodes in the target target.
+#
+#
+#
+# to be continued...
 
 
 def test():
+    def print_matches(t, p):
+        print '*'*60
+        print t, 'TARGET TREE'
+        print p.get_ascii(), 'PATTERN'
+        for m in find_matches(t, p):
+            print m, '*MATCH*'
+        raw_input()
+
     # ^ after a ) means that the two children of that node can be connected by
     # any number of internal up/down nodes
     t1 = Tree("(  ((B,Z), (D,F)), G);")
     p1 = TreePattern("( (B,Z), G)^;")
-    list(find_matches(t1, p1))
-    raw_input()
+    print_matches(t1, p1)
 
     t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
     p1 = TreePattern("(((B,Z)^,C), G)^;")
-    list(find_matches(t1, p1))
-    raw_input()
+    print_matches(t1, p1)
 
     t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
     p1 = TreePattern("(((B,Z)^,G), C)^;")
-    list(find_matches(t1, p1))
-    raw_input()
+    print_matches(t1, p1)
 
     t1 = Tree("(((A, (B,C,D)), ((B,C), A)), F);")
     p1 = TreePattern("((C,B,D*), A);")
-    list(find_matches(t1, p1))
-    raw_input()
+    print_matches(t1, p1)
 
     t1 = Tree("(((A, (B,C,D, D, D)), ((B,C), A)), F);")
     p1 = TreePattern("((C,B,'D{2,3}'), A);")
-    list(find_matches(t1, p1))
-    raw_input()
+    print_matches(t1, p1)
 
     t1 = Tree("(a, b, b, a);")
     p1 = TreePattern("(a+, b+);")
-    list(find_matches(t1, p1))
-    raw_input()
+    print_matches(t1, p1)
 
     t1 = Tree("((a, b), c);")
     p1 = TreePattern("((a, b, d*), c);")
-    find_matches(t1, p1)
-    raw_input()
+    print_matches(t1, p1)
 
     t1 = Tree("(  (((B,H), (B,B,H), C), A), (K, J));")
     p1 = TreePattern("((C, (B+,H)+), A);")
-    find_matches(t1, p1)
-    raw_input()
+    print_matches(t1, p1)
+    
 if __name__ == '__main__':
     test()
