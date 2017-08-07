@@ -442,7 +442,7 @@ def loose_connection_nodes(pattern):
         c = frozenset(content & to_visit)
         if len(c) > 1:
             expected_groups.add(c)
-    return to_visit, expected_groups, pnode2content
+    return to_visit, sorted(expected_groups, key=lambda x: len(x))
 
 
 def find_matches(tree, pattern):
@@ -455,7 +455,7 @@ def find_matches(tree, pattern):
 
     c2nodes = compute_match_matrix(pattern, tree)
     root2matches = OrderedDict()
-    to_visit, expected_groups, pnode2content = loose_connection_nodes(pattern)
+    to_visit, expected_groups = loose_connection_nodes(pattern)
 
     for proot in to_visit:
         matches = []
@@ -481,7 +481,7 @@ def find_matches(tree, pattern):
             continue
         is_match = True
         for group in expected_groups:
-            observed_group =  [nodes[p2index[v]] for v in group]
+            observed_group = [nodes[p2index[v]] for v in group]
             anc = tree.get_common_ancestor(observed_group)
             if anc not in ancestors:
                 ancestors.append(anc)
@@ -489,8 +489,8 @@ def find_matches(tree, pattern):
                 is_match = False
                 break
         if is_match:
-            print ancestors[0], 'MATCH'
-            yield ancestors[0]
+            print ancestors[-1], 'MATCH'
+            yield ancestors[-1]
 
 
 
@@ -500,9 +500,13 @@ def test():
     list(find_matches(t1, p1))
     raw_input()
 
-
     t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
     p1 = TreePattern("(((B,Z)^,C), G)^;")
+    list(find_matches(t1, p1))
+    raw_input()
+
+    t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
+    p1 = TreePattern("(((B,Z)^,G), C)^;")
     list(find_matches(t1, p1))
     raw_input()
 
