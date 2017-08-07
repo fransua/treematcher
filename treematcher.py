@@ -187,22 +187,6 @@ class TreePattern(Tree):
         # Set a default syntax controller if a custom one is not provided
         self.syntax = syntax if syntax else PatternSyntax()
 
-    def decode_repeat_symbol(self, bounds):
-        """
-        Extracts valuable information from the controlled skipping case.
-
-        :param bounds: a string that contains the {x-y} pattern.
-
-        returns a list with the lower and the highest bounds in respectively order.
-        """
-        bounds = bounds[1:len(bounds)-1]
-        if '-' in bounds:
-            split = bounds.split("-")
-            low = int(split[0]) if split[0] else 0
-            high = int(split[1] ) if split[1] else -1
-        else:
-            low = high = int(bounds)
-        return [low, high]
 
     def parse_metacharacters(self, raw_constraint):
         """Takes a string as node name, extracts metacharacters and interpret them as
