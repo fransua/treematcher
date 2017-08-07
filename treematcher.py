@@ -495,6 +495,8 @@ def find_matches(tree, pattern):
 
 
 def test():
+    # ^ after a ) means that the two children of that node can be connected by
+    # any number of internal up/down nodes
     t1 = Tree("(  ((B,Z), (D,F)), G);")
     p1 = TreePattern("( (B,Z), G)^;")
     list(find_matches(t1, p1))
