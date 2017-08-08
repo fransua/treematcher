@@ -237,7 +237,7 @@ class TreePattern(Tree):
         if '@' not in clean_name:
             constraint = '__target_node.name == "%s"' %clean_name
         elif clean_name:
-            constraint = self.constraint.replace('@', '__target_node')
+            constraint = clean_name.replace('@', '__target_node')
         else:
             constraint = 'True'
 
@@ -255,7 +255,6 @@ class TreePattern(Tree):
         It describes how the metacharacter connects with the rest of nodes and
         if it is leaf or root.
         """
-
         # Interpret node name to python expression
         self.constraint = self.parse_node_name()
 
