@@ -1,20 +1,13 @@
-#system modules
 import re
-from itertools import permutations
+import itertools
+from collections import defaultdict, OrderedDict
 
-# third party modules
-import ast
 import six
 import copy
 from ete3 import PhyloTree, Tree, NCBITaxa
+
 from symbols import SYMBOL, SET
-
-# internal modules
-#...
-
-#developement modules
-from sys import exit
-
+from pprint import pprint
 
 class TreePatternCache(object):
     def __init__(self, tree):
@@ -166,50 +159,12 @@ class PatternSyntax(object):
         events = self.cache.get_cached_attr('evoltype', target_node)
         return(events.count('S'))
 
-
-    # TODO: review next function
-
-    def smart_lineage(self, constraint):
-        """ Get names instead of tax ids if a string is given before the "in
-        @.linage" in a query. Otherwise, returns Taxonomy ids. Function also
-        works for constraint that contains something besides the given target
-        node (e.g., @.children[0].lineage).
-
-        :param constraint: Internal use.
-
-        :return:  Returns list of lineage tax ids if taxid is searched,
-        otherwise returns names in lineage. """
-
-        parsedPattern = ast.parse(constraint, mode='eval')
-
-        lineage_node = [n for n in ast.walk(parsedPattern)
-                        if hasattr(n, 'comparators') and type(n.comparators[0]) == ast.Attribute
-                        and n.comparators[0].attr == "lineage"]
-
-        index = 0
-        for lineage_search in lineage_node:
-            if hasattr(lineage_node[index].left,'s'):
-                # retrieve what is between __target and .lineage
-                found_target = (re.search(r'__target[^ ]*\.lineage', constraint).span())
-                extracted_target = constraint[found_target[0]: found_target[1]]
-
-                syntax = "(ncbi.get_taxid_translator(" + \
-                         str(extracted_target) + ")).values()"
-                if index == 0:
-                    constraint = constraint.replace(str(extracted_target), syntax, 1)
-                else:
-
-                    constraint = re.sub(r'^((.*?' + extracted_target + r'.*?){' + str(index) + r'})' + extracted_target,
-                             r'\1' + syntax, constraint)
-
-            index += 1
-
-        return constraint
-
-
 class TreePattern(Tree):
     def __str__(self):
         return self.get_ascii(show_internal=True, attributes=["name"])
+
+    def __repr__(self):
+        return "Pattern node '%s' (%s)" %(self.name, hex(self.__hash__()))
 
     def __init__(self, newick=None, format=1, dist=None, support=None,
                  name=None, quoted_node_names=True, syntax=None):
@@ -232,399 +187,93 @@ class TreePattern(Tree):
         # Set a default syntax controller if a custom one is not provided
         self.syntax = syntax if syntax else PatternSyntax()
 
-        # check the tree syntax.
 
-    def is_in_bounds(self, bound, test):
+    def parse_metacharacters(self, raw_constraint):
+        """Takes a string as node name, extracts metacharacters and interpret them as
+        min and max occurrences. Assumes that all metacharacters are defined at
+        the end of the string.
+
         """
-        Checks in case of indirect connection the current node is inside the bounds.
-        :param bound: specifies what bound to test
-        """
-
-        if bound == 'low':
-            return test >= self.controller["low"]
-        elif bound == 'high':
-            if self.controller["high"] >= 0:
-                # high bound has to be less but not equal, because it performs a 'can skip one more' test.
-                return test <= self.controller["high"]
-        return True
-
-    def find_extreme_case(self, match_list):
-        """
-        Given a single match pattern and a list of (matched) nodes
-        returns the one that fulfills the constraint. That constraint should
-        describe an axtreme condition such as minimum or maxhimum.
-
-        :param match_list: a list of (matched) nodes
-        """
-
-        # find the node in self that has the comparison expression.
-        # now is useless. In case this comparison can be made inside other
-        # patterns, the every pattern should compare their corresponding node of
-        # the other patterns.
-        for node in self.traverse():
-            if node.controller["single_match"]:
-                pattern = node
-                constraint = pattern.controller["single_match_contstraint"]
-
-        # for all nodes in the matched pattern find the one that fits the best
-        # the constraint expression.
-        # assumes that the root has to be tested.
-        correct_node = match_list[0]
-
-        st = False # truth flag for eval()
-
-        for node in match_list:
-            # for every node in the list compare the best match so far with
-            # the current node in the list priority.
-            constraint = pattern.controller["single_match_contstraint"]
-            constraint_scope = {attr_name: getattr(self.syntax, attr_name)
-                                for attr_name in dir(self.syntax)}
-            constraint_scope.update({"__target_node": node})
-            constraint_scope.update({"__correct_node": correct_node})
-            constraint = constraint.replace("@", "__target_node")
-            constraint = constraint.replace(SET["all_nodes"], "__correct_node")
-
-            try:
-                st = eval(constraint, constraint_scope)
-
-            except ValueError:
-                raise ValueError("not a boolean result: . Check quoted_node_names.")
-
-            except (AttributeError, IndexError) as err:
-                raise ValueError('Constraint evaluation failed at %s: %s' %
-                                 (target_node, err))
-            except NameError:
-                try:
-                    # temporary fix. Can not access custom syntax on all nodes. Get it from the root node.
-                    root_syntax = self.get_tree_root().syntax
-                    constraint_scope = {attr_name: getattr(root_syntax, attr_name)
-                                        for attr_name in dir(root_syntax)}
-                    constraint_scope.update({"__target_node": node})
-                    constraint_scope.update({"__correct_node": correct_node})
-
-                    st = eval(constraint, constraint_scope)
-                    if st: correct_node = node
-
-                except NameError as err:
-                    raise NameError('Constraint evaluation failed at %s: %s' %
-                             (target_node, err))
+        raw_constraint = raw_constraint.strip()
+        if raw_constraint.endswith('+'):
+            self.min_occur = 1
+            self.max_occur = 9999999
+            raw_constraint = raw_constraint[:-1]
+        elif raw_constraint.endswith('*'):
+            self.min_occur = 0
+            self.max_occur = 9999999
+            raw_constraint = raw_constraint[:-1]
+        elif raw_constraint.endswith('}'):
+            exp = '\{\s*(\d+)\s*,\s*(\d+)\s*\}'
+            s = re.search(exp, raw_constraint)
+            if s:
+                minv, maxv = map(int, s.groups())
+                self.min_occur = minv
+                self.max_occur = maxv
+                raw_constraint = re.sub(exp, '', raw_constraint)
             else:
-                if st: correct_node = node
-        return correct_node
+                self.min_occur = 1
+                self.max_occur = 1
 
-    def decode_repeat_symbol(self, bounds):
-        """
-        Extracts valuable information from the controlled skipping case.
-
-        :param bounds: a string that contains the {x-y} pattern.
-
-        returns a list with the lower and the highest bounds in respectively order.
-        """
-        bounds = bounds[1:len(bounds)-1]
-        if '-' in bounds:
-            split = bounds.split("-")
-            low = int(split[0]) if split[0] else 0
-            high = int(split[1] ) if split[1] else -1
         else:
-            low = high = int(bounds)
-        return [low, high]
+            self.min_occur = 1
+            self.max_occur = 1
 
-    def parse_metacharacters(self):
-        """
-        Takes a string as node name and extracts the metacharacters.
-        Assumes that all metacharacters are defined at the end of the string.
-        returns a list containing all metacharacters in the string.
-        """
-        metacharacters = []
+        if raw_constraint.startswith('^') and self.children:
+            self.loose_children = True
+            raw_constraint = raw_constraint[1:]
+        else:
+            self.loose_children = False
 
-        while len(self.name) > 0 and  self.name[len(self.name)-1] in SYMBOL.values():
-
-            if SYMBOL["defined_number_set_start"] in self.name:
-                metacharacters += [
-                self.name [
-                self.name.find(SYMBOL["defined_number_set_start"]):self.name.find(SYMBOL["defined_number_set_end"]) + 1
-                ]]
-                self.name = self.name[0:self.name.find(SYMBOL["defined_number_set_start"])]
-            else:
-                metacharacters += [ self.name[len(self.name) - 1] ]
-
-                if len(self.name) > 0:
-                    self.name = self.name[0:len(self.name)-1]
-
-        if len(self.name) < 1:
-            self.name = SYMBOL["node_reference"]
-        return metacharacters
+        return raw_constraint.strip()
 
     def parse_node_name(self):
+        """transforms node.name into an evaluable python expression. Metachars are also
+        extracted and parsed as min and max occurrence information.
         """
-        transforms TreePattern.name attribute to a python expression.
-        Assumes expressions use commas to describe different attributes.
-        """
-        expressions = [ exp.strip() for exp in self.name.split(",") ]
+        clean_name = self.parse_metacharacters(self.name)
 
-        for i in range(0, len(expressions)):
-            # len(expressions[i]) > 0 prevents @.name == "" case
-            if len(expressions[i]) > 0 and all(letter.isalpha() for letter in expressions[i]):
-                expressions[i] = '@.name == "' + expressions[i] + '"'
+        # Translate alias and shortcut expressions in clean names
+        if '@' not in clean_name:
+            constraint = '__target_node.name == "%s"' %clean_name
+        elif clean_name:
+            constraint = clean_name.replace('@', '__target_node')
+        else:
+            constraint = 'True'
 
-        # prevents the " _expressions_ ... and  __empty_exp__ " case
-        return " and ".join(exp for exp in expressions if len(exp) > 0)
+        if self.children:
+            constraint = '(%s) and __target_node.children' %constraint
+        else:
+            constraint = '(%s) and not __target_node.children' %constraint
 
-    def define_skipping_properties(self, metacharacters):
-        controller = {}
+        return constraint
 
-        for metacharacter in metacharacters:
-
-            # update controller in case of root or leaf metacharacters and set the node name
-            if metacharacter == SYMBOL["is_root"]:
-                controller["root"] = True
-            if metacharacter == SYMBOL["is_leaf"]:
-                controller["leaf"] = True
-
-            # update controller according to metacharacter connection properties.
-            if metacharacter == SYMBOL["one_or_more"]:
-                controller["allow_indirect_connection"] = True
-                controller["direct_connection_first"] = False
-                controller["low"] = 1
-            elif metacharacter == SYMBOL["zero_or_more"]:
-                controller["allow_indirect_connection"] = True
-                controller["direct_connection_first"] = True
-            elif metacharacter == SYMBOL["zero_or_one"]:
-                controller["direct_connection_first"] = True
-                controller["allow_indirect_connection"] = True
-                controller["high"] = 1
-            elif SYMBOL["defined_number_set_start"] in metacharacter:
-                split = self.name.split(SYMBOL["defined_number_set_start"])
-                bounds = self.decode_repeat_symbol(metacharacter)
-                controller["low"] = bounds[0]
-                controller["high"] = bounds[1]
-                controller["allow_indirect_connection"] = True
-                if controller["low"]  == 0: controller["direct_connection_first"] = True
-                else: controller["direct_connection_first"] = False
-
-        return controller
-
-    def set_controller(self):
+    def init_controller(self):
         """
         Creates a dictionary that contains information about a node.
         That information is about how a node interacts with the tree topology.
         It describes how the metacharacter connects with the rest of nodes and
         if it is leaf or root.
         """
-        controller = {}
-
-        metacharacters = []
-        if len(self.name) > 0:
-            metacharacters = self.parse_metacharacters()
-
-        # bounds, (already) skipped nodes values and connection properties.
-        controller["low"] = 0
-        controller["high"] = -1
-        controller["skipped"] = 0
-        controller["single_match"] = False
-        controller["allow_indirect_connection"] = False
-        controller["direct_connection_first"] = False
-
-        properties = self.define_skipping_properties(metacharacters)
-        controller.update(properties)
-
-        # transform node name to python expression
-        self.name = self.parse_node_name()
-
-        # review scope
-        # transform sets to the corresponding code
-        if SET["any_child"] in self.name:
-            self.name = " any( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["any_child"], "x") + " for x in __target_node.children)"
-        if SET["children"] in self.name:
-            self.name = " all( " + self.name.split("[")[0] + " " + ("[" + self.name.split("[")[1]).replace(SET["children"], "x") + " for x in __target_node.children)"
-        if SET["all_nodes"] in self.name:
-            controller["single_match"] = True
-            controller["single_match_contstraint"] = self.name
-            self.name = '@'
-
-        self.controller = controller
-        return self.controller["single_match"]
-
-    # FUNCTIONS EXPOSED TO USERS START HERE
-    def match(self, node, cache=None):
-        """
-        Check all constraints interactively on the target node.
-
-        :param node: A tree (node) to be searched for a given pattern.
-
-        :param local_vars:  Dictionary of TreePattern class variables and
-        functions for constraint evaluation.
-
-        :return: True if a match has been found, otherwise False.
-        """
-        self.syntax.cache = cache
-        # does the target node match the root node of the pattern?
-
-        #check the zero intermediate node case.
-        #assumes that SYMBOL["zero_or_more"] has only one child.
-        if self.controller["direct_connection_first"] and not self.is_leaf():
-            self = self.children[0]
-
-        status = self.is_local_match(node, cache)
-
-        if not status:
-            if self.controller["allow_indirect_connection"] and self.is_leaf():
-                pass
-            elif self.up is not None and self.up.controller["allow_indirect_connection"] and self.up.is_in_bounds("high", self.up.controller["skipped"] + 1 ):  # skip node by resetting pattern
-                status = True
-                self = self.up
-                self.controller["skipped"] += 1
-        elif self.controller["allow_indirect_connection"] and self.controller["skipped"] == 0:
-            self.controller["skipped"] += 1
-
-
-        # if so, continues evaluating children pattern nodes against target node
-        # children
-        if status and self.children:
-
-                #if the number of children do not match, find where they do and check that
-                nodes = []
-
-                if len(node.children) < len(self.children):
-                    if self.controller["allow_indirect_connection"]:
-                        count = 0
-                        for skip_to_node in node.traverse(strategy="levelorder"):
-                            # skip to node with correct number of children
-                            if len(skip_to_node.children) >= len(self.children):
-                                count += 1
-                                nodes += [skip_to_node]
-                                sisters = skip_to_node.get_sisters()
-                                if len(sisters) > 0:
-                                   for sister in sisters:
-                                       nodes += [sister]
-
-                                break
-                        if count < 1:
-                            status = False
-
-                    else:
-                        #print("setting status to false")
-                        status = False
-
-                # If pattern node expects children nodes, tries to find a
-                # combination of target node children that match the pattern
-
-                if len(nodes) == 0:
-                    nodes = [node]
-
-                for node in nodes:
-                    sub_status_count = 0
-                    if len(node.children) >= len(self.children):
-                        test_children_properties = False
-                        continious_matched = []
-                        for candidate in permutations(node.children):
-                            sub_status = True
-                            current_matched = 0
-
-                            i = 0
-                            j = 0
-                            while i < len(self.children):
-                                st = self.children[i].match(candidate[j], cache)
-
-                                #print "testing: " + self.children[i].name + " -- " + candidate[j].name + " -- st: " + str(st) + " -- subst: " + str(sub_status)
-
-                                if self.children[i].is_leaf() and self.children[i].controller["allow_indirect_connection"] and sub_status: # REVIEW ME
-                                    test_children_properties = True
-                                    if st:
-                                        current_matched += 1
-                                    j += 1
-                                    if j < len(candidate):
-                                        continue
-                                    else:
-                                        #print "updating " + str(current_matched) + " to " + str(continious_matched)
-                                        if current_matched > 0: continious_matched += [current_matched]
-                                        current_matched = 0
-                                else :
-                                    if st and not self.is_in_bounds("low", self.controller["skipped"]):
-                                        # in case it matches, but has exited the lower bound (in case it exist), force False the match
-                                        st = False
-                                    if st == False and self.controller["allow_indirect_connection"] and len(candidate[i].children) > 0:
-                                        pass
-                                    else:
-                                        sub_status &= st
-                                        if sub_status: sub_status_count += 1
-                                i += 1
-                                j += 1
-
-                            if test_children_properties:
-                                continue
-                            elif sub_status and sub_status_count > 0:
-                                status = True
-                                break
-                            else:
-                                status = False
-                        if test_children_properties:
-                            sub_sub_status = False
-                            #print continious_matched
-                            if len(continious_matched) > 0 :
-                                for con_matches in continious_matched:
-                                    low_test = self.children[-1].is_in_bounds("low", con_matches)
-                                    high_test = self.children[-1].is_in_bounds("high", con_matches)
-                                    sub_sub_status |= low_test and high_test
-                                sub_status = sub_sub_status
-                            #print "exited with sub_sub_status: " + str(sub_status)
-                            #if not self.children[-1].controller["direct_connection_first"]:
-                            elif self.children[-1].controller["direct_connection_first"]:
-                                sub_sub_status = True
-                            sub_status = sub_sub_status
-                            status = sub_status
-                            if sub_status: sub_status_count += 1
-
-                    if status and sub_status_count > 0:
-                        break
-
-        # 'skipped' tracks the maximum skipped node. So only in case of not match, it decreases
-        if not status and self.controller["allow_indirect_connection"]: self.controller["skipped"] -= 1
-        return status
+        # Interpret node name to python expression
+        self.constraint = self.parse_node_name()
 
 
     def is_local_match(self, target_node, cache):
-        """ Evaluate if this pattern constraint node matches a target tree node.
-
-        TODO: args doc here...
-        """
+        """ Evaluate if a tree nodes matches the constraints in this pattern node.  """
 
         # Creates a local scope containing function names, variables and other
         # stuff referred within the pattern expressions. We use Syntax() as a
         # container of those custom functions and shortcuts.
-
         constraint_scope = {attr_name: getattr(self.syntax, attr_name)
                             for attr_name in dir(self.syntax)}
         constraint_scope.update({"__target_node": target_node})
-        constraints = []
-
-        if "root" in self.controller and self.controller["root"]: constraints.append("__target_node.is_root()")
-        if "leaf" in self.controller and self.controller["leaf"]: constraints.append("__target_node.is_leaf()")
-
-
-        if not self.name:
-            # empty pattern node should match any target node
-            constraints.append('')
-        elif '@' in self.name:
-            # use as any node if used alone or
-            # converts references to node itself if it's in an expression.
-            if len(self.name) == 1: constraints.append('')
-            else: constraints.append(self.name.replace('@', '__target_node'))
-        elif self.controller["allow_indirect_connection"]:
-            # pattern nodes that allow indirect connection should match any target node
-            constraints.append('')
-
-        else:
-            # if no references to itself, let's assume we search an exact name
-            # match (allows using regular newick string as patterns)
-            constraints.append('__target_node.name == "%s"' % self.name)
 
         try:
-            st = True
-            for constraint in constraints:
-                if constraint:
-                    st &= eval(constraint, constraint_scope)
-                else: st &= True
+            if self.constraint:
+                st = eval(self.constraint, constraint_scope)
+            else:
+                st = True
 
         except ValueError:
             raise ValueError("not a boolean result: . Check quoted_node_names.")
@@ -652,64 +301,310 @@ class TreePattern(Tree):
         else:
             return st
 
+    def find_match(self, t):
+        return find_matches(t, self)
+        
+        
 
-    def find_match(self, tree, maxhits=1, cache=None, target_traversal="preorder"):
-        """ A pattern search continues until the number of specified matches are
-        found.
-        :param tree: tree to be searched for a matching pattern.
-        :param maxhits: Number of matches to be searched for.
-        :param cache: When a cache is provided, preloads target tree information
-                               (recommended only for large trees)
-        :param None maxhits: Pattern search will continue until all matches are found.
-        :param target_traversal: choose the traversal order (e.g. preorder, levelorder, etc)
-        :param nested: for each match returned,
+# NEW APPROACH
+def compute_match_matrix(pattern, tree):
+    '''Computes a dictionary where keys are all the constraints observed in a
+    pattern and values all nodes matching those patterns.'''
 
-        """
+    c2nodes = defaultdict(set)
+    for n in tree.traverse():
+        for cn in pattern.traverse():
+            if cn.is_local_match(n, None):
+                c2nodes[cn.constraint].add(n)
+    return c2nodes
 
-        # the controller is for only one use, because it changes the node names.
-        # for that reason a deepcopy of the pattern and not the pattern
-        # is traversed. Very slow operation.
-        one_use_pattern = copy.deepcopy(self)
+def children_match(tnode, pnode, c2nodes, loose_constraint=None):
+    '''returns True if a subtree (tnode) matches recursively a given pattern
+    (pnode), handling min and max number of occurrences. pnode should not
+    contain loose connections
+    '''
+    
+    # If no children expected in pattern node, return True, as local
+    # conditions have already been checked
+    if not pnode.children:
+        return True
 
-        # indicaes whether the pattern is a pattern of single match
-        # such as maximum or minimum value of an attribute
-        single_match_pattern = False
+    t_children = set(tnode.children)
 
-        # sets the controller for every node.
-        # should chagne if only is a metacharacter acording to benchmarking tests.
-        # if one node indicates single_match, the whole pattern is single_match.
-        # no functionality to support other than pattern's root single_match yet
-        for node in one_use_pattern.traverse():
-            single_match_pattern |= node.set_controller()
+    matches = []
+    matched_children = set()
+    constraint2max_occur = defaultdict(lambda: [set(), 0])
+    for pnode_ch in pnode.children:
+        match_nodes = c2nodes[pnode_ch.constraint] & t_children
+        constraint2max_occur[pnode_ch.constraint][0].update(match_nodes)
+        constraint2max_occur[pnode_ch.constraint][1] += pnode_ch.max_occur
 
-        # in case of single_match pattern save the nodes and filter them
-        # in other case find the requested match
-        if single_match_pattern:
-            matched_nodes = []
-            for node in tree.traverse(target_traversal):
-                if one_use_pattern.match(node, cache):
-                    matched_nodes += [node]
-            yield one_use_pattern.find_extreme_case(matched_nodes)
+        # at least a node matching each pattern constraint
+        if not match_nodes and pnode_ch.min_occur > 0:
+            #print 1
+            return False
+
+        # Record all children nodes with matches
+        matched_children.update(match_nodes)
+
+        # And prepare all permutations of matches in node with minimum occurrences
+        if not match_nodes and pnode_ch.min_occur == 0:
+            matches.append([[None]])
         else:
-            num_hits = 0
-            for node in tree.traverse(target_traversal):
-                if one_use_pattern.match(node, cache):
-                    num_hits += 1
-                    yield node
-                if maxhits is not None and num_hits >= maxhits:
+            matches.append(list(itertools.permutations(match_nodes, max(pnode_ch.min_occur, 1))))
+
+    # there should be nodes without a match
+    if len(matched_children) < len(t_children):
+        #print 2
+        return False
+
+    # Check accumulated occurances of constraint matches do not exceed max
+    # occurrences
+    for ob, ex in constraint2max_occur.values():
+        if len(ob) > ex:
+            #print 3
+            return False
+
+    # Let's check if there is a non-overlapping combination of nodes matches
+    # satisfies patterns. For instance, avoid cases where one node matches the
+    # two required patterns
+    for comb in itertools.product(*matches):
+        valid = set()
+        potential_match = comb
+        for x in comb:
+            x = set(x)
+            inter =  valid & set(x)
+            if not inter:
+                valid.update(x)
+            else:
+                potencial_match = None
+                # let's check next comb
+                break
+
+        if potential_match:
+            match = True
+            # Let's check inside the node
+            for i, pnode_ch in enumerate(pnode.children):
+                for tnode_ch in potential_match[i]:
+                    if tnode_ch is None:
+                        continue
+                    if not children_match(tnode_ch, pnode_ch, c2nodes):
+                        match = False
+                        break
+                if not match:
                     break
+            if match:
+                return True
+
+    return False
+
+def split_by_loose_nodes(pattern):
+    '''split a pattern tree into all subpatterns connected through loose connections
+    (allowing multiple intermediate between them). '''
+
+    pnode2content = pattern.get_cached_content(leaves_only=False)
+
+    # split pattern by loose nodes and store a list of partitions that can be
+    # used for strict matches
+    to_visit = set()
+    for n in list(pattern.traverse()):
+        if n.loose_children:
+            for ch in n.get_children():
+                if not ch.loose_children:
+                    to_visit.add(ch.detach())
+                else:
+                    ch.detach()
+        elif n is pattern:
+            to_visit.add(pattern)
+
+    # Calculate expected groupings of the split partitions
+    expected_groups = set()
+    for p, content in pnode2content.iteritems():
+        c = frozenset(content & to_visit)
+        if len(c) > 1:
+            expected_groups.add(c)
+
+    return to_visit, sorted(expected_groups, key=lambda x: len(x))
+
+
+def find_matches(tree, pattern):
+    '''Iterate over all possible matches of pattern in tree'''
+
+    for n in pattern.traverse():
+        n.init_controller()
+
+    c2nodes = compute_match_matrix(pattern, tree)
+    root2matches = OrderedDict()
+    to_visit, expected_groups = split_by_loose_nodes(pattern)
+
+
+    for proot in to_visit:
+        matches = []
+        for match_node in c2nodes[proot.constraint]:
+            if children_match(match_node, proot, c2nodes):
+                matches.append(match_node)
+        if not matches:
+            raise StopIteration
+
+        root2matches[proot]=matches
+
+    if len(root2matches) == 1:
+        for match in root2matches[proot]:
+            yield match
+        raise StopIteration
+
+    p2index = {p:i for i,p in enumerate(root2matches.keys())}
+    to_visit = set(to_visit)
+    for nodes in itertools.product(*root2matches.values()):
+        ancestors = list()
+        if len(nodes) != len(set(nodes)):
+            continue
+        is_match = True
+        for group in expected_groups:
+            observed_group = [nodes[p2index[v]] for v in group]
+            anc = tree.get_common_ancestor(observed_group)
+            if anc not in ancestors:
+                ancestors.append(anc)
+            else:
+                is_match = False
+                break
+        if is_match:
+            yield ancestors[-1]
+
+def expand_loose_connection_aliases(nw):
+    def find_first_unmatched_closing_par(string):
+        open_par = 0
+        for i, ch in enumerate(string):
+            if ch == '(':
+                open_par += 1
+            elif ch == ')':
+                if open_par == 0:
+                    return i
+                open_par -= 1
+        return -1
+    chunks = []
+    i = 0
+    while True:
+        next_split = nw[i:].find('^')
+        if next_split == -1:
+            chunks.append(nw[i:])
+            break
+
+        chunks.append(nw[i:next_split])
+        chunks.append(',')
+
+        i += next_split + 1
+        ipoint = find_first_unmatched_closing_par(nw[i:])
+        chunks.append(nw[i:i+ipoint+1])
+        chunks.append('^')
+        i += ipoint + 1
+
+    return ''.join(chunks)
+
+
+
+# Facts:
+#   1) A pattern is a tree structure expressed in newick format.
+#
+#   2) Every pattern node is associated to an attributes constraint, which is
+#   expressed and pattern node name and can be a python expression.
+#
+#   3) The pattern topology is also used as a constraint. If no special symbols
+#   are used, a strict match of topology (parent-node relationships) is
+#   necessary to have a match
+# 
+#   4) The symbol '+' at the end of a pattern node constraint expression
+#   indicates that ONE OR MORE nodes like the one specified can exist as SISTER
+#   nodes
+#
+#   5) The syntax '{min,max}' at the end of a pattern node constraint
+#   expression indicates that between MIN and MAX number of nodes matching the
+#   constraint can exist as SISTER nodes
+#
+#   6) The symbol '*' at the end of a pattern node constraint expression
+#   indicates that the between 0 and INFINITY number of nodes matching the
+#   constraint can exist as SISTER nodes
+#
+#   7) The modifier symbols cab be used both in terminal and internal nodes.
+#   When used in internal nodes, they refer to the whole partition defined by
+#   the node.
+#
+#   8) To express that two terminal or internal nodes can be linked by an
+#   arbitrary number of connections (so called a LOOSE CONNECTION), the symbol
+#   '^' should be added to their parent nodes
+#
+# How the matching algorithm works:
+#
+# The problem of finding matches is subdivided into three sub-problems:
+#
+#  A1) finding matches of the strict pattern expressions (no looses connections contained).
+#
+#  A1.1) The original pattern is split into pieces (sub-patterns) that contain
+#  no loose connections. This is mostly done by the `split_by_loose_nodes()` function 
+#
+#  A1.2) Each sub-pattern is treated individually and used as input for A2.
+#
+#  A2) find exact matches of a sub-pattern in a tree
+#
+#   A2.1) Recursive search starting from the root node of the sub-pattern and
+#   descending through. Each pattern node is evaluated to check if their
+#   children combination exist in the target tree. 
+#
+#   Which TREE nodes match each children PATTERN node.
+#   Fails if:
+#     if any child pattern nodes cannot find min and max number of nodes in the target target.
+#
+#
+#
+# to be continued...
 
 
 def test():
-    print "compiled.\nrun /test/test_metacharacters.py and /test/test_logical_comparison.py to test."
-    t3 = PhyloTree(""" ((c, d, e, f)b)a ; """, format=8, quoted_node_names=False)
+    def print_matches(t, p):
+        print '*'*60
+        print t, 'TARGET TREE'
+        print p.get_ascii(), 'PATTERN'
+        for m in find_matches(t, p):
+            print m, '*MATCH*'
+        raw_input()
 
-    (t3&'c').dist = 0.5
-    (t3&'e').dist = 0.5
-    (t3&'f').dist = 0.5
+    t1 = Tree("(((A, A2), (B,C)), K);") 
+    p1 = TreePattern("(((A, A2), (B,C)), K);")
+    print_matches(t1, p1)
+        
+    # ^ after a ) means that the two children of that node can be connected by
+    # any number of internal up/down nodes
+    t1 = Tree("(  ((B,Z), (D,F)), G);")
+    p1 = TreePattern("( (B,Z), G)^;")
+    print_matches(t1, p1)
 
-    pattern1 = TreePattern(""" (('d', '@.dist > 0.5, *')'b')'a, ^' ;""", quoted_node_names=True)
-    print len(list(pattern1.find_match(t3))) > 0
+    t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
+    p1 = TreePattern("(((B,Z)^,C), G)^;")
+    print_matches(t1, p1)
 
+    t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
+    p1 = TreePattern("(((B,Z)^,G), C)^;")
+    print_matches(t1, p1)
+
+    t1 = Tree("(((A, (B,C,D)), ((B,C), A)), F);")
+    p1 = TreePattern("((C,B,D*), A);")
+    print_matches(t1, p1)
+
+    t1 = Tree("(((A, (B,C,D, D, D)), ((B,C), A)), F);")
+    p1 = TreePattern("((C,B,'D{2,3}'), A);")
+    print_matches(t1, p1)
+
+    t1 = Tree("(a, b, b, a);")
+    p1 = TreePattern("(a+, b+);")
+    print_matches(t1, p1)
+
+    t1 = Tree("((a, b), c);")
+    p1 = TreePattern("((a, b, d*), c);")
+    print_matches(t1, p1)
+
+    t1 = Tree("(  (((B,H), (B,B,H), C), A), (K, J));")
+    p1 = TreePattern("((C, (B+,H)+), A);")
+    print_matches(t1, p1)
+    
 if __name__ == '__main__':
     test()
