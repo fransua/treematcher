@@ -6,7 +6,6 @@ import six
 from copy import deepcopy
 from ete3 import PhyloTree, Tree, NCBITaxa
 
-from symbols import SYMBOL, SET
 from pprint import pprint
 
 class TreePatternCache(object):
