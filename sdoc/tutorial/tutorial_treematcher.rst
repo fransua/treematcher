@@ -214,10 +214,10 @@ Instead, break complex patterns into smaller searches. If conditional statements
 examples:
 Read patterns from a file called MyPatterns.txt and apply to each tree in MyTargetTrees.txt, output the results of each pattern in separate files called treematches0.txt, treematches1.txt, etc
 If there is only one pattern, the result file will not be numbered.
-``` ete3 treematcher --pattern_tree_list "MyPattern.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt ```
+``` ete_search --pattern_tree_list "MyPattern.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt ```
 
 Provide the pattern and tree as strings and print the result to the terminal.
-```ete3 treematcher -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" ```
+```ete_search -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" ```
 
 Count how many trees matches a pattern from a list of trees.
 ` ete_search -p "(the, pattern)" --src_tree_list trees.file --root | wc -l`
@@ -226,4 +226,4 @@ Count how many trees matches a pattern from a list of trees.
 The render option will save each match as an image. If there are multiple patterns, numbers will be used to designate each pattern starting from 0.
 If there are multiple matches, and underscore is used with a number for each match starting with 0. If I had two
 
-``` ete3 treematcher --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" --render treematches.png ```
+``` ete_search --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" --render treematches.png ```
