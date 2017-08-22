@@ -214,7 +214,7 @@ class Test_metacharacters_at_terminal_nodes(unittest.TestCase):
         p2 = TreePattern(" ('c{3,3}', 'd')'p2' ;",quoted_node_names=True)
         p3 = TreePattern(" ('c{2,3}', d, 'ww{0,3}')p2 ;")
         p4 = TreePattern(" ('c{3,3}', 'd{0,5}', 'ww{0,3}')p2;")
-        p5 = TreePattern(" ('c{1,2}', 'd{0,1}')p2;")
+        p5 = TreePattern(" ('c{1,2}', 'd{0,1}', 'ww*')'p2';")
 
         patterns = [p1, p2, p3, p4, p5]
         true_match = [True, True, True, True, False]
@@ -223,7 +223,6 @@ class Test_metacharacters_at_terminal_nodes(unittest.TestCase):
         for num, pattern in enumerate(patterns):
             result = pattern.find_match(tree)
             found = len(list(result)) > 0
-            print "match: " + str(match) + " &= found: " + str(found) + " == " + str(true_match[num]) + " = " + str(found == true_match[num])
             match &= found == true_match[num]
 
         self.assertTrue(match)

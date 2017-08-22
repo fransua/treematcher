@@ -6,7 +6,7 @@ import os.path
 from argparse import ArgumentParser
 from ete3.tools.common import src_tree_iterator
 from ete3.phylo import PhyloTree
-from treematcher import TreePattern, TreePatternCache
+from .treematcher import TreePattern
 
 class match_stats(object):
     def __init__(self, name=""):

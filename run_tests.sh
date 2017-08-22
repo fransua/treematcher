@@ -1,1 +1,1 @@
-python treematcher/test/test_treematcher.py
+python -m treematcher.test.test_treematcher
