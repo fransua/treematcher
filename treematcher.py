@@ -198,6 +198,8 @@ class TreePattern(Tree):
         if raw_constraint.endswith('+'):
             self.min_occur = 1
             self.max_occur = 9999999
+
+            
             raw_constraint = raw_constraint[:-1]
         elif raw_constraint.endswith('*'):
             self.min_occur = 0
@@ -336,15 +338,15 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
     constraint2max_occur = defaultdict(lambda: [set(), 0])
     for pnode_ch in pnode.children:
         match_nodes = c2nodes[pnode_ch.constraint] & t_children
-        constraint2max_occur[pnode_ch.constraint][0].update(match_nodes)
         constraint2max_occur[pnode_ch.constraint][1] += pnode_ch.max_occur
+        constraint2max_occur[pnode_ch.constraint][0].update(match_nodes)
 
-        # at least a node matching each pattern constraint
-        if not match_nodes and pnode_ch.min_occur > 0:
+        # check min nodes each pattern constraint
+        if pnode_ch.min_occur > 0 and len(match_nodes) < pnode_ch.min_occur:
             #print 1
             return False
 
-        # Record all children nodes with matches
+        # Keep track all children nodes with matches
         matched_children.update(match_nodes)
 
         # And prepare all permutations of matches in node with minimum occurrences
@@ -358,29 +360,31 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
         #print 2
         return False
 
-    # Check accumulated occurances of constraint matches do not exceed max
-    # occurrences
-    for ob, ex in constraint2max_occur.values():
-        if len(ob) > ex:
-            #print 3
-            return False
-
     # Let's check if there is a non-overlapping combination of nodes matches
-    # satisfies patterns. For instance, avoid cases where one node matches the
+    # satisfying patterns. For instance, avoid cases where one node matches the
     # two required patterns
     for comb in itertools.product(*matches):
         valid = set()
         potential_match = comb
         for x in comb:
             x = set(x)
-            inter =  valid & set(x)
+            inter = valid & set(x)
             if not inter:
                 valid.update(x)
             else:
-                potencial_match = None
+                potential_match = None
                 # let's check next comb
                 break
 
+        # Validate max number of occurrences assuming current valid combination
+        if potential_match:
+            for matches, ex in constraint2max_occur.values():
+                remain_match_nodes = matches - valid
+                if len(remain_match_nodes) > (pnode_ch.max_occur - pnode_ch.min_occur):
+                    potential_match = None
+                    break
+
+        # Validate descendants
         if potential_match:
             match = True
             # Let's check inside the node
@@ -396,6 +400,7 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
             if match:
                 return True
 
+    #print 3
     return False
 
 def split_by_loose_nodes(pattern):
@@ -436,7 +441,6 @@ def find_matches(tree, pattern):
     c2nodes = compute_match_matrix(pattern, tree)
     root2matches = OrderedDict()
     to_visit, expected_groups = split_by_loose_nodes(pattern)
-
 
     for proot in to_visit:
         matches = []
@@ -568,8 +572,34 @@ def test():
             print m, '*MATCH*'
         raw_input()
 
-    t1 = Tree("(((A, A2), (B,C)), K);")
-    p1 = TreePattern("(((A, A2), (B,C)), K);")
+    # Should  match
+    t1 = Tree(" (((F, G)E, (C, D)B), A);", format=8)
+    p1  = TreePattern("('@.support > 0', '@.support > 0')'B' ;")
+    print_matches(t1, p1)
+
+    # Should NOT match
+    t1 = Tree(" (((F, G)E, (C, D)B), A);", format=8)
+    p1  = TreePattern("('@.support > 0', '@.support > 0{2,3}')'B' ;")
+    print_matches(t1, p1)
+
+    # Should  match
+    t1 = Tree(" (((F, G)E, (C, D)B), A);", format=8)
+    p1  = TreePattern("('C', '@.support > 0')'B' ;")
+    print_matches(t1, p1)
+
+    # Should not match
+    t1 = Tree("(((A, A, A), (B,C)), K);")
+    p1 = TreePattern("(((A, A+, A, A), (B,C)), K);")
+    print_matches(t1, p1)
+
+    # Should match
+    t1 = Tree("(((A, A, A), (B,C)), K);")
+    p1 = TreePattern("(((A, A+, A), (B,C)), K);")
+    print_matches(t1, p1)
+
+    # Should match
+    t1 = Tree("(((A, A, A), (B,C)), K);")
+    p1 = TreePattern("(((A, A+), (B,C)), K);")
     print_matches(t1, p1)
 
     # ^ after a ) means that the two children of that node can be connected by
