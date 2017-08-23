@@ -119,8 +119,7 @@ class Test_metacharacters_at_terminal_nodes(unittest.TestCase):
 
     def test_skipped_zero_or_more(self):
         tree = Tree(" ((((a, a, b)), (c, d), (e, f)), (g, h, i)) ; ")
-        # pattern = TreePattern(" ( a, b, d*) ;")
-        pattern = TreePattern(" a^ ;")
+        pattern = TreePattern(" ( a, b, d*) ;")
 
         result = (pattern.find_match(tree))
         # false test
@@ -211,10 +210,10 @@ class Test_metacharacters_at_terminal_nodes(unittest.TestCase):
     def test_exact_number_and_topology(self):
         tree = Tree(" ((a, a, b)p1, ((c, c, c, d)p2, (e, f, g)p3)p4)p5 ;", format=1)
         p1 = TreePattern(" ('a{2,2}', 'b')'p1' ;", quoted_node_names=True)
-        p2 = TreePattern(" ('c{3,3}', 'd')'p2' ;",quoted_node_names=True)
+        p2 = TreePattern(" ('c{1,5}', 'd')'p2' ;",quoted_node_names=True)
         p3 = TreePattern(" ('c{2,3}', d, 'ww{0,3}')p2 ;")
         p4 = TreePattern(" ('c{3,3}', 'd{0,5}', 'ww{0,3}')p2;")
-        p5 = TreePattern(" ('c{1,2}', 'd{0,1}')p2;")
+        p5 = TreePattern(" ('c{1,2}', 'd{0,1}', 'ww*')p2;")
 
         patterns = [p1, p2, p3, p4, p5]
         true_match = [True, True, True, True, False]
@@ -223,10 +222,103 @@ class Test_metacharacters_at_terminal_nodes(unittest.TestCase):
         for num, pattern in enumerate(patterns):
             result = pattern.find_match(tree)
             found = len(list(result)) > 0
-            print "match: " + str(match) + " &= found: " + str(found) + " == " + str(true_match[num]) + " = " + str(found == true_match[num])
             match &= found == true_match[num]
 
         self.assertTrue(match)
+
+
+class Test_basic_tests(unittest.TestCase):
+    def test_all(self):
+
+        test = True
+
+        t1 = Tree(" ((a, a, b)p1, ((c, c, c, d)p2, (e, f, g)p3)p4)p5 ;", format=1)
+        p1 = TreePattern(" ('c+', 'd')'p2' ;",quoted_node_names=True)
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        # Should  match
+        t1 = Tree(" (((F, G)E, (C, D)B), A);", format=8)
+        p1  = TreePattern("('@.support > 0', '@.support > 0')'B' ;")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+
+        # Should NOT match
+        t1 = Tree(" (((F, G)E, (C, D)B), A);", format=8)
+        p1  = TreePattern("('@.support > 0', '@.support > 0{2,3}')'B' ;")
+        test &= len(list(p1.find_match(t1))) == 0
+
+
+
+        # Should  match
+        t1 = Tree(" (((F, G)E, (C, D)B), A);", format=8)
+        p1  = TreePattern("('C', '@.support > 0')'B' ;")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        # Should not match
+        t1 = Tree("(((A, A, A), (B,C)), K);")
+        p1 = TreePattern("(((A, A+, A, A), (B,C)), K);")
+        test &= len(list(p1.find_match(t1))) == 0
+
+
+        # Should match
+        t1 = Tree("(((A, A, A), (B,C)), K);")
+        p1 = TreePattern("(((A, A+, A), (B,C)), K);")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        # Should match
+        t1 = Tree("(((A, A, A), (B,C)), K);")
+        p1 = TreePattern("(((A, A+), (B,C)), K);")
+        test &= len(list(p1.find_match(t1))) > 0
+        
+
+        # ^ after a ) means that the two children of that node can be connected by
+        # any number of internal up/down nodes
+        t1 = Tree("(  ((B,Z), (D,F)), G);")
+        p1 = TreePattern("( (B,Z), G)^;")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
+        p1 = TreePattern("(((B,Z)^,C), G)^;")
+        test &= len(list(p1.find_match(t1))) == 0
+
+
+        t1 = Tree("(  ((G, ((B,Z),A)), (D,G)), C);")
+        p1 = TreePattern("(((B,Z)^,G), C)^;")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        t1 = Tree("(((A, (B,C,D)), ((B,C), A)), F);")
+        p1 = TreePattern("((C,B,D*), A);")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        t1 = Tree("(((A, (B,C,D, D, D)), ((B,C), A)), F);")
+        p1 = TreePattern("((C,B,'D{2,3}'), A);")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        t1 = Tree("(a, b, b, a);")
+        p1 = TreePattern("(a+, b+);")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        t1 = Tree("((a, b), c);")
+        p1 = TreePattern("((a, b, d*), c);")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        t1 = Tree("(  (((B,H), (B,B,H), C), A), (K, J));")
+        p1 = TreePattern("((C, (B+,H)+), A);")
+        test &= len(list(p1.find_match(t1))) > 0
+
+
+        self.assertTrue(test)
+
 
 if __name__ == '__main__':
     unittest.main()
