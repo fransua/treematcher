@@ -10,7 +10,7 @@ install:
   - virtualenv "test_${TRAVIS_PYTHON_VERSION}"
   - source "test_${TRAVIS_PYTHON_VERSION}/bin/activate"
   - pip install six
-  - pip install https://github.com/etetoolkit/ete/archive/feature/quotednames.zip
+  - pip install https://github.com/etetoolkit/ete/archive/master.zip
 
 script:
   - ./run_tests.sh

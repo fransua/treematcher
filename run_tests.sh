@@ -1,4 +1,1 @@
-
-for file in ./test/test_*; do
-    python $file
-done
+python -m treematcher.test.test_treematcher
