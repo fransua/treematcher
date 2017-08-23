@@ -16,174 +16,77 @@ pattern1 = TreePattern(pattern1)  # create a TreePattern Instance
 ```
 Now that you know how to search for the name of a single node, you may be tempted to access other nodes through constraints like @.children[0].name=="sample_1" and @.children[1].name=="sample_2" but calling a node's descendants in this way restricts the order in which they are considered a match. For example, the permutation @.children[0].name=="sample_2" and @.children[1].name=="sample_1" would not be returned as a match. Using the Newick format ensures that both permutations of children are matched.
 
-```
-# Example 2: Find a tree where sample_1 and sample_2 are siblings.
-pattern2 = TreePattern(' (sample_1, sample_2) ; ')
-```
 
 Note that the format type is set to 1 as the default which does not allow internal node names. Access other Newick format types using the format argument.
 
-###
 ```
-# Example 3: Find a tree where sample_1 and sample_2 are children of the parent ancestor_a.
-pattern3 = ' (sample_1, sample_2) ancestor_a ; '
-pattern3 = TreePattern(pattern3, format=8)
+# Example 2: Find a tree where sample_1 and sample_2 are siblings under ancestor_a
+tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format = 8)
+pattern2 = TreePattern(' (sample_1, sample_2)ancestor_a ; ', format=8)
 ```
 
 ### Quoted node names and the node symbol @
 In order to differentiate the parentheses of a function call from the parentheses defining Newick structure, quoted node names are used. The quotes surrounding each node will be removed and the contents inside will be processed as python code. If no quotes are present, as in the previous examples, all parenthesis are assumed to be part of the Newick structure. In order to ensure that the pattern is being processed correctly, set the quoted_node_names to False when not quoting node names. You can set quoted_node_names to True when they are used but this is assumed by default. In order to access a method on a node, use the @ symbol to represent the node.
 
 ```
-# Example4: Find a tree where sample_1 and sample_2 are siblings.
-pattern1 = TreePattern(' (sample_1, sample_2) ; ', quoted_node_names=False)
 
-# Example 5: Find a tree where sample_2 and another leaf are siblings where a leaf is determined by number of children.
-pattern2 = TreePattern(""" ('len(@.children)==0', 'sample_2') ; """, quoted_node_names=True)
+# Example 3: Find a tree where sample_2 and another leaf are siblings where a leaf is determined by number of children.
+pattern2 = TreePattern(""" ('len(@.children)==0', 'sample_2')ancestor_a ; """, quoted_node_names=True)
 
-# Example 6: Find a tree where sample_1 and another leaf are siblings by accessing the the is_leaf method.
-pattern3 = TreePattern(""" ('sample_1', '@.is_leaf()') ; """, quoted_node_names=True)
+# Example 4: Find a tree where sample_1 and another leaf are siblings by accessing the the is_leaf method.
+pattern3 = TreePattern(""" ('sample_1', '@.is_leaf()')ancestor_a ; """, quoted_node_names=True)
 ```
+
+### Relax matches
+
+Treematcher allows to test against relax matched patterns.
+
+By setting ` ^ ` as ancestor you enable the loose connection ability.
+Loose connection means that either the node(s) under ` ^ ` may connect via any number
+of nodes to a upper or higher level node or that the ` ^ ` children may connect
+loosely (via any number of nodes) themselves.
+
+```
+# example 5: test if tips A, B, C exists in the same tree
+pattern5 = TreePattern(" (A, B, C)^ ;")
+
+#example 6: test if (A, B) and (C, D) are conected via any number of nodes
+pattern6 = TreePattern(" ((A,B)^), ((C,D)^) ;")
+
+```
+
+You can test for a relax number of children too.
+You can use:
+` * `, ` + ` and ` { min, max} `
+They borrow their meaning from regular expressions.
+
+```
+#example 7: zero or more ocuurances of a node
+TreePattern( " ('A', '@.dist > 0.5*')'^' ;", quoted_node_names=True)
+
+#example 8: exact number
+TreePattern(" ('A', '@.dist > 0,5{2, 5}') ;", quoted_node_names=True)
+
+```
+
 
 ### To Run
-To run, use the find_match() function. By default, find_match will look for one match. If every match needs to be returned, set maxhits to None. To find the number of matches returned, use len().
+To run, use the find_match() function. By default, find_match will look for one match.
+To find the number of matches returned, use len().
 
 ```
 
-# Example 6: Find the parent node of the siblings sample_1 and sample_2
+# Example 9: Find the parent node of the siblings sample_1 and sample_2
 tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format = 8)
-pattern = TreePattern(' (sample_1, sample_2) ; ', quoted_node_names=False)
-solution = list(pattern.find_match(tree, None))
+pattern = TreePattern(' (sample_1) ; ', quoted_node_names=False)
+solution = list(pattern.find_match(tree))
 print("The number of solutions are: ", len(solution))
 
 ```
 The following tutorial shows the previous examples in more detail.
 
+For more details on how to use treematcher read the tutorial.
 
-### Tutorial 1: Introduction to patterns using TreeMatcher.
-
-```
-    tree = Tree("((sample_1,sample_2)ancestor_a,(sample_1,sample_2)ancestor_b)root;", format=8)
-    print tree
-
-    border = "\n" + "#" * 110 + "\n"
-
-    #######################################################
-    print(border)
-    print("Find all nodes named sample_1.")
-    print(border)
-    #######################################################
-
-    # search for the name attribute.
-    # The name is quoted but the node is not so quoted_node_names is set to False.
-    pattern1_v1 = """ @.name=="sample_1" ; """
-    pattern1_v1 = TreePattern(pattern1_v1, quoted_node_names=False)  # TP Instance
-    solution = pattern1_v1.find_match(tree, None)
-    print("version 1", list(solution))
-
-    # When no attribute is given, the node name is assumed
-    pattern1_v2 = """ sample_1 ; """
-    pattern1_v2 = TreePattern(pattern1_v2, quoted_node_names=False)
-    solution = pattern1_v2.find_match(tree, None)
-    print("version 2", list(solution))
-
-    # Find the total number of pattern2 matches
-    solution = len(list(pattern1_v2.find_match(tree, None)))
-    print("The number of solutions for pattern 1 is:", solution)
-
-    #######################################################
-    print(border)
-    print("Find a tree where sample_1 and sample_2 are siblings.")
-    print(border)
-    #######################################################
-
-    # Only need to find if there is a single match so maxhits=1
-    pattern2_v1 = """ (sample_1, sample_2) ; """  # comma is used separate sibling nodes
-    pattern2_v1 = TreePattern(pattern2_v1, quoted_node_names=False)  # create the TreePattern Instance
-    solution = pattern2_v1.find_match(tree, maxhits=1)
-    print("solution ", list(solution))
-
-    #If you want to know if the match exists at a specific node, use match()
-    solution1 = pattern2_v1.match(tree.children[0])
-    solution2 = pattern2_v1.match(tree.children[1])
-    print("solution 1 is", solution1)
-    print("solution 2 is", solution2)
-
-    # If you want all matches, use maxhits value of None.
-    all_solutions = list(pattern2_v1.find_match(tree, None))
-    print("All solutions for pattern 2 are:", all_solutions)
-    t = PhyloTree(
-        "((((((((((((((((Human_1, Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1), Chimp_1), (Human_2, (Chimp_2, Chimp_3))), ((Fish_1, (Human_3, Fish_3)), Yeast_2)), Yeast_1);", format=8)
-    t.set_species_naming_function(lambda n: n.name.split("_")[0] if "_" in n.name else '')
-    t.get_descendant_evol_events()
-    cache = TreePatternCache(t)
-    pattern = TreePattern(
-        """  (('n_duplications(@) > 0')'n_duplications(@) > 0 ')'contains_species(@, ["Chimp", "Human"])' ; """)
-
-    #basic usage
-    start_time = time.time()
-    for i in range(0, 1000):
-        list(pattern.find_match(t, maxhits=None))
-    end_time = time.time()
-    total_time= (end_time - start_time) / 1000.00
-    print("time without cache", total_time)
-
-
-    # Using Cache
-    start_time_cache = time.time()
-    for i in range(0, 1000):
-        list(pattern.find_match(t, maxhits=None, cache=cache))
-    end_time_cache = time.time()
-    total_time_cache = (end_time_cache - start_time_cache) / 1000.00
-    print("time with cache", total_time_cache)
-
-
-    # Expanding vocabulary
-    class MySyntax(PatternSyntax):
-	    def my_nice_function(self, node):
-		    return node.species == 'Chimp'
-
-    my_syntax = MySyntax()
-
-    pattern = """ 'my_nice_function(@)'; """
-    t_pattern = TreePattern(pattern, syntax=my_syntax)
-    for match in t_pattern.find_match(t, cache):
-	print(list(match))
-
-```
-
-### The results of the Tutorial 1 are as follows:
-
-```
-
-      /-sample_1
-   /-|
-  |   \-sample_2
---|
-  |   /-sample_1
-   \-|
-      \-sample_2
-
-##############################################################################################################
-
-Find all nodes named sample_1.
-
-##############################################################################################################
-
-('version 1', [Tree node 'sample_1' (0x10ac1365), Tree node 'sample_1' (0x10ac3315)])
-('version 2', [Tree node 'sample_1' (0x10ac1365), Tree node 'sample_1' (0x10ac3315)])
-('The number of solutions for pattern 1 is:', 2)
-
-##############################################################################################################
-
-Find a tree where sample_1 and sample_2 are siblings.
-
-##############################################################################################################
-
-('solution ', [Tree node 'ancestor_a' (0x108f09c9)])
-('solution 1 is', True)
-('solution 2 is', True)
-('All solutions for pattern 2 are:', [Tree node 'ancestor_a' (0x108f09c9), Tree node 'ancestor_b' (0x1091024d)])
-```
 
 A short list of commonly used constraints is given in the following table.
 
@@ -219,15 +122,6 @@ Table 1: Examples of common constraints.
 Virtually any attribute available in ETE can be searched for on a tree, however, the larger the structure the more complex the pattern is, the more computationally intensive the search will be. Large Newick trees with complex conditional statements calling functions that require several tree traversals is not recommended.
 Instead, break complex patterns into smaller searches. If conditional statements are used, try putting the part of the search that you think will be faster first.
 
-#### Using a cache
-For trees with thousands of nodes, you can speed up a search by using a cache. The same cache can be used with multiple patterns.
-
-```
-# Example 7:
-cache = TreePatternCache(t)
-solution = list(pattern.find_match(t, maxhits=None, cache=cache))
-```
-
 ####  Custom Functions
 You can use your own custom functions and syntax in treematcher.  In the following example, a custom function is created in a custom class called MySyntax.
 
@@ -241,12 +135,13 @@ my_syntax = MySyntax()
 
 pattern = """ 'my_nice_function(@)'; """
 t_pattern = TreePattern(pattern, syntax=my_syntax)
-for match in t_pattern.find_match(t, cache):
+for match in t_pattern.find_match(t):
 	print(list(match))
 
 ```
 
 ### Command line tool
+
 |  argument       						| meaning       						                                                  |
 | --------------------------------------|:---------------------------------------------------------------------------------------:|
 | -p								    | a list of patterns in newick format (filenames with one per file or quoted strings)     |
@@ -254,10 +149,10 @@ for match in t_pattern.find_match(t, cache):
 |-v                                     | prints the current pattern, prints which trees (by number) do not match the pattern     |
 | --tree_format							| format for trees, default = 1	                            		                      |
 | --quoted_node_names 					| default = True					                            	                      |
-| --cache            					| name of cache, default = None					                  	                      |
-| --maxhits          					| number of matches returned, default = 1   						                      |
+| -o, --output                  | output file for search results
 | --src_tree_list                       | path to a file containing many target trees, one per line                               |
 | --pattern_tree_list                   | path to a file containing many pattern trees, one per line                              |
+|-r, --root                             | flag to return the root of the tree if at least a match was found
 | --render                              | filename (.SVG, .PDF, or .PNG), to render the tree image                                |
 | --tab                                 | output results in tab delimited format, default if -o used and ascii not specified      |
 | --ascii                               | output results in ascii format                                                          |
@@ -265,14 +160,18 @@ for match in t_pattern.find_match(t, cache):
 examples:
 Read patterns from a file called MyPatterns.txt and apply to each tree in MyTargetTrees.txt, output the results of each pattern in separate files called treematches0.txt, treematches1.txt, etc
 If there is only one pattern, the result file will not be numbered.
-``` ete3 treematcher --pattern_tree_list "MyPattern.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt ```
+
+` ete_search --pattern_tree_list "MyPattern.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt `
 
 Provide the pattern and tree as strings and print the result to the terminal.
-```ete3 treematcher -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" ```
+`ete_search -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" `
+
+
+Count how many trees matches a pattern from a list of trees.
+` ete_search -p "(the, pattern)" --src_tree_list trees.file --root | wc -l`
+
 
 The render option will save each match as an image. If there are multiple patterns, numbers will be used to designate each pattern starting from 0.
 If there are multiple matches, and underscore is used with a number for each match starting with 0. If I had two
 
-``` ete3 treematcher --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" --render treematches.png ```
-
-
+` ete_search --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" --render treematches.png `
