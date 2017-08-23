@@ -6,7 +6,7 @@ import os.path
 from argparse import ArgumentParser
 from ete3.tools.common import src_tree_iterator
 from ete3.phylo import PhyloTree
-from .treematcher import TreePattern
+from treematcher.treematcher import TreePattern
 
 class match_stats(object):
     def __init__(self, name=""):
@@ -31,7 +31,7 @@ class match_stats(object):
         printable +="Errors: {}\n".format(self.errors)
         return printable
 
-DESC=''
+DESC='Search for strict or relax described (using regexp logic) patterns in newick trees.\n'
 
 #ete3 treematcher --pattern "(hello, kk);" --pattern-format 8 --tree-format 8 --trees "(hello,(1,2,3)kk);" --quoted-node-names
 
