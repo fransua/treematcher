@@ -198,8 +198,6 @@ class TreePattern(Tree):
         if raw_constraint.endswith('+'):
             self.min_occur = 1
             self.max_occur = 9999999
-
-            
             raw_constraint = raw_constraint[:-1]
         elif raw_constraint.endswith('*'):
             self.min_occur = 0
@@ -335,10 +333,11 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
 
     matches = []
     matched_children = set()
-    constraint2max_occur = defaultdict(lambda: [set(), 0])
+    constraint2max_occur = defaultdict(lambda: [set(), 0, 0])
     for pnode_ch in pnode.children:
         match_nodes = c2nodes[pnode_ch.constraint] & t_children
-        constraint2max_occur[pnode_ch.constraint][1] += pnode_ch.max_occur
+        constraint2max_occur[pnode_ch.constraint][1] += pnode_ch.min_occur
+        constraint2max_occur[pnode_ch.constraint][2] += pnode_ch.max_occur
         constraint2max_occur[pnode_ch.constraint][0].update(match_nodes)
 
         # check min nodes each pattern constraint
@@ -378,9 +377,9 @@ def children_match(tnode, pnode, c2nodes, loose_constraint=None):
 
         # Validate max number of occurrences assuming current valid combination
         if potential_match:
-            for matches, ex in constraint2max_occur.values():
+            for k, (matches, mino, maxo) in constraint2max_occur.items():
                 remain_match_nodes = matches - valid
-                if len(remain_match_nodes) > (pnode_ch.max_occur - pnode_ch.min_occur):
+                if len(remain_match_nodes) > (maxo - mino):
                     potential_match = None
                     break
 
@@ -572,6 +571,12 @@ def test():
             print m, '*MATCH*'
         raw_input()
 
+
+    t1 = Tree(" ((a, a, b)p1, ((c, c, c, d)p2, (e, f, g)p3)p4)p5 ;", format=1)
+    p1 = TreePattern(" ('c+', 'd')'p2' ;",quoted_node_names=True) 
+    print_matches(t1, p1)
+
+    
     # Should  match
     t1 = Tree(" (((F, G)E, (C, D)B), A);", format=8)
     p1  = TreePattern("('@.support > 0', '@.support > 0')'B' ;")
