@@ -33,7 +33,6 @@ result = pattern1.find_match(tree) # returns a generator object
 ```
 
 
-
 #### Types of nodes
 
 There are two types of nodes that can be written in a TreePattern.
@@ -58,6 +57,13 @@ result = pattern2.find_match(tree2) # returns a generator object
 
 ###### Quoted node names and the node symbol @
 In order to differentiate the parentheses of a function call from the parentheses defining Newick structure, quoted node names are used. The quotes surrounding each node will be removed and the contents inside will be processed as python code. If no quotes are present, as in the previous examples, all parenthesis are assumed to be part of the Newick structure. In order to ensure that the pattern is being processed correctly, set the quoted_node_names to False when not quoting node names. You can set quoted_node_names to True when they are used but this is assumed by default. In order to access a method on a node, use the @ symbol to represent the node.
+
+Be sure that these quotes are different from those of the overall pattern definition.
+For example:
+`TreePattern(""" ('the_quoted_pattern'); """, quoted_node_names=True ) `
+and not
+`TreePattern(" ("the_quoted_pattern") ;", quoted_node_names=True)`
+
 
 ```
 # Example 3: search a node using an attrubute
@@ -214,16 +220,18 @@ Instead, break complex patterns into smaller searches. If conditional statements
 examples:
 Read patterns from a file called MyPatterns.txt and apply to each tree in MyTargetTrees.txt, output the results of each pattern in separate files called treematches0.txt, treematches1.txt, etc
 If there is only one pattern, the result file will not be numbered.
-``` ete_search --pattern_tree_list "MyPattern.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt ```
+
+`python -m treematcher.tools.ete_search --pattern_tree_list "MyPattern.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" -o treematches.txt `
 
 Provide the pattern and tree as strings and print the result to the terminal.
-```ete_search -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" ```
+`python -m treematcher.tools.ete_search -p "(e,d);" --tree_format 8 -t "(c,(d,e)b)a;" `
+
 
 Count how many trees matches a pattern from a list of trees.
-` ete_search -p "(the, pattern)" --src_tree_list trees.file --root | wc -l`
+` python -m treematcher.tools.ete_search -p "(the, pattern)" --src_tree_list trees.file --root | wc -l`
 
 
 The render option will save each match as an image. If there are multiple patterns, numbers will be used to designate each pattern starting from 0.
 If there are multiple matches, and underscore is used with a number for each match starting with 0. If I had two
 
-``` ete_search --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" --render treematches.png ```
+`python -m treematcher.tools.ete_search --pattern_tree_list "MyPatterns.txt" --tree_format 8 --src_tree_list "MyTargetTrees.txt" --render treematches.png `
