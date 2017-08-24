@@ -169,7 +169,7 @@ def run(args):
                     elif match_length == 1:  # one file for one match
                         matches[0].render(image)
                     else:
-                        if vars(args)["verbosity"][0] > 1:
+                        if vars(args)["verbosity"] and vars(args)["verbosity"][0] > 1:
                             print("No matches for tree {}".format(n))
 
             if vars(args)["output"]:
