@@ -1,14 +1,14 @@
 # TreeMatcher: A new tool for creating Python-based queries on trees
 
 TreeMatcher is a subproject of ete3.
-TreeMatcher will be merged with ete3. Until then ete3 have to be in PYTHONPATH environmental variable.
+TreeMatcher will be merged with ete3. Until then treematcher have to be in PYTHONPATH environmental variable.
 
 Insert that line to `~/.bashrc` file so it can be loaded automatically on every login
 in case you use bash shell.
 
 ```
-path_to_ete='path_to_ete3_repository'
-export PYTHONPATH=$PYTHONPATH":${path_to_ete}"
+path_to_treematcher='path_to_treematcher_repository'
+export PYTHONPATH=$PYTHONPATH":${path_to_treematcher}"
 ```
 
 ### Program Description
