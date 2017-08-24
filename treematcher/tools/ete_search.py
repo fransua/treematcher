@@ -152,18 +152,18 @@ def run(args):
                         else:
                             image += str(pattern_num)
                     ts = TreeStyle()
-
+                    ts.show_leaf_name = True
                     for n in t.traverse():
                         nstyle = NodeStyle()
-                        nstyle["fgcolor"] = "red"
-                        nstyle["size"] = 5
+                        if n in matches:
+                            nstyle["fgcolor"] = "green"
+                            nstyle["size"] = 7
+                        else:
+                            nstyle["fgcolor"] = "red"
+                            nstyle["size"] = 5
                         n.set_style(nstyle)
 
-                    for match in matches:
-                        match.img_style["size"] = 15
-                        match.img_style["fgcolor"] = "green"
-
-                    t.render(image, tree_style=ts)
+                    t.render(image, tree_style=ts, layout=lambda x: None)
                 else:
                     if pattern_length > 1:  # multiple patterns
                         if match_length > 1:  # one file per match on each pattern
